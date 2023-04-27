@@ -16,7 +16,6 @@ def connect_to_device(device_addr):
     return sock
 
 def main():
-    print("Searching for devices...")
 
     selected_device = "E4:5F:01:FD:E5:FF"
     
