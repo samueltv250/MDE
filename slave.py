@@ -1,10 +1,8 @@
 import os
 import sys
 import bluetooth
-from bluetooth import BluetoothSocket, BluetoothError, RFCOMM, discover_devices
-import time
-import os
-os.chdir('/home/pi')
+import subprocess
+from bluetooth import BluetoothSocket, BluetoothError, RFCOMM
 
 def rec_on_exit():
     server_sock = BluetoothSocket(RFCOMM)
@@ -23,25 +21,30 @@ def rec_on_exit():
                 break
             print("Received command: %s" % data)
             if data.startswith("shutdown"):
-                time.sleep(1)
-                os.system("shutdown now -h")
+                subprocess.run(["sudo", "shutdown", "-h", "now"])
+                client_sock.send("Shutting down...".encode('utf-8'))
+                break
+            if data.startswith("reboot"):
+                subprocess.run(["sudo", "reboot"])
+                client_sock.send("Rebooting...".encode('utf-8'))
+                break
+
             if data.startswith("get"):
                 _, file_path = data.split(" ", 1)
                 if os.path.isfile(file_path):
+                    file_size = os.path.getsize(file_path)
+                    client_sock.send(str(file_size).encode('utf-8'))
                     with open(file_path, "rb") as f:
-                        file_data = f.read()
-                        file_size = len(file_data)
-                        client_sock.send(f"{file_size}\n".encode('utf-8'))
-                        time.sleep(0.5)  # Allow some time for the client to be ready
-                        client_sock.sendall(file_data)
+                        file_data = f.read(1024)
+                        while file_data:
+                            client_sock.send(file_data)
+                            file_data = f.read(1024)
                 else:
                     client_sock.send("File not found".encode('utf-8'))
             else:
                 os.system(data)
-
     except BluetoothError as e:
         print("Disconnected")
-
     finally:
         print("Closing sockets")
         client_sock.close()

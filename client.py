@@ -1,24 +1,30 @@
 import sys
 import bluetooth
-from bluetooth import BluetoothSocket, BluetoothError, RFCOMM, discover_devices
-
-def search_devices():
-    nearby_devices = discover_devices()
-    print("Found {} devices.".format(len(nearby_devices)))
-
-    for addr, name in nearby_devices:
-        print("  {} - {}".format(addr, name))
-    return nearby_devices
+import os
+from bluetooth import BluetoothSocket, BluetoothError, RFCOMM
 
 def connect_to_device(device_addr):
     sock = BluetoothSocket(RFCOMM)
-    sock.connect((device_addr, 1))
+    try:
+        sock.connect((device_addr, 1))
+    except OSError as e:
+        print("Could not connect. Error:", e)
+        sock.close()
+        print("Retrying to connect.")
+        return connect_to_device(device_addr)
     return sock
 
-def main():
+def receive_file(sock, file_path, file_size):
+    with open(file_path, "wb") as f:
+        received = 0
+        while received < file_size:
+            data = sock.recv(1024)
+            received += len(data)
+            f.write(data)
+    print("File received.")
 
+def main():
     selected_device = "E4:5F:01:FD:E5:FF"
-    
     print("Connecting to {}".format(selected_device))
     sock = connect_to_device(selected_device)
 
@@ -28,29 +34,21 @@ def main():
             if command == "exit":
                 break
             sock.send(command.encode('utf-8'))
-            if command.startswith("shutdown"):
+            if command.startswith("shutdown") or command.startswith("reboot"):
+                response = sock.recv(1024).decode('utf-8')
+                print(response)
                 break
-           # ...
-
-     
             if command.startswith("get"):
-                with open(command.split(" ", 1)[1], "wb") as f:
-                    while True:
-                        data = sock.recv(1024)
-                        if data.endswith(b'EOF'):
-                            f.write(data[:-3])  # Write received data without 'EOF' marker
-                            break
-                        else:
-                            f.write(data)
-                print("File received.")
-
-
-
-
-
+                file_path = command.split(" ", 1)[1]
+                response = sock.recv(1024).decode('utf-8')
+                if response == "File not found":
+                    print(response)
+                else:
+                    file_size = int(response)
+                    destination_path = os.path.join(os.getcwd(), os.path.basename(file_path))
+                    receive_file(sock, destination_path, file_size)
     except BluetoothError as e:
         print("Disconnected")
-
     finally:
         print("Closing socket")
         sock.close()
