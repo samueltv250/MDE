@@ -38,6 +38,12 @@ def main():
                 response = sock.recv(1024).decode('utf-8')
                 print(response)
                 break
+            if command.startswith("add_to_queue"):  # New command to add satellite to the queue
+                sock.send(f"add_to_queue".encode('utf-8'))
+                response = sock.recv(1024).decode('utf-8')
+                print(response)
+                continue
+
             if command.startswith("get"):
                 file_path = command.split(" ", 1)[1]
                 response = sock.recv(1024).decode('utf-8')
