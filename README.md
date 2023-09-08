@@ -1,4 +1,4 @@
-To enable autopairing with the **autopair.service**, follow the steps below:
+To enable autopairing with the **autopair.service**, follow the steps below in the Raspberry pi terminal:
 
 ## Installation:
 
