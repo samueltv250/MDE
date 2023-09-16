@@ -24,6 +24,8 @@ serial_port = '/dev/ttyUSB0'
 baud_rate = 9600
 ser = serial.Serial(serial_port, baud_rate, timeout=1)
 
+ts = load.timescale()
+
 def send_command(command):
     ser.write((command + '\r\n').encode())
     time.sleep(0.1)
@@ -35,7 +37,7 @@ def track_satellite(satellite, observer_location, max_elevation_speed, max_azimu
     prev_azimuth = None
     while True:
         # Calculate current time
-        current_time = load.timescale().now()
+        current_time = ts.now()
 
         # Calculate satellite position
         difference = satellite - observer_location

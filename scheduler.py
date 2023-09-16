@@ -1,15 +1,22 @@
-from skyfield.api import Topos, load
+from skyfield.api import Topos, load, EarthSatellite
+
+
 from datetime import datetime
 import pytz
+import io
 from timezonefinder import TimezoneFinder
 
 ts = load.timescale()
 
 
 def get_all_viewing_windows(satellite, start_time, end_time, topos, latitude, longitude):
+
+    start_time = start_time.astimezone(pytz.utc)
+    end_time = end_time.astimezone(pytz.utc)
+    # Convert the start and end time to a Time instance
     t0 = ts.utc(start_time.year, start_time.month, start_time.day, start_time.hour, start_time.minute, start_time.second)
     t1 = ts.utc(end_time.year, end_time.month, end_time.day, end_time.hour, end_time.minute, end_time.second)
-
+    # Find all the windows where the satellite is above 0 degrees elevation
     times, events = satellite.find_events(topos, t0, t1, altitude_degrees=0.0)
     windows = []
     rise_time = None
@@ -59,35 +66,40 @@ def get_non_overlapping_non_repeating_schedule(satellites, start_time, end_time,
 
     return non_overlapping_non_repeating_windows
 
-def get_non_overlapping_schedule(satellites, start_time, end_time, latitude, longitude, topos):
+def get_sequential_tracking_schedule(satellites, start_time, end_time, latitude, longitude, topos):
+    # Initiate empty list to store the results
+    tracking_schedule = []
 
+    # Define the current end time as the start time
+    current_end_time = start_time
 
-    local_timezone = pytz.timezone(determine_timezone(latitude, longitude))
-    start_time_local = local_timezone.localize(start_time)
-    end_time_local = local_timezone.localize(end_time)
-
-    start_time_utc = start_time_local.astimezone(pytz.utc)
-    end_time_utc = end_time_local.astimezone(pytz.utc)
-
-
-    all_windows = []
+    # Iterate over satellites based on their order
     for satellite in satellites:
-        for window in get_all_viewing_windows(satellite, start_time_utc, end_time_utc, topos, latitude, longitude):
-            all_windows.append((satellite.name, window[0], window[1], satellite))
+        windows = get_all_viewing_windows(satellite, current_end_time, end_time, topos, latitude, longitude)
 
-    # Sorting windows by their start time
-    all_windows.sort(key=lambda x: x[1])
+        # If there are windows available for the satellite
+        if windows:
+            rise_time, set_time = windows[0]  # We take the first available window
+            tracking_schedule.append((satellite.name, rise_time, set_time, satellite))
+            current_end_time = set_time  # Update the current end time to avoid overlap
 
-    non_overlapping_windows = []
-    last_set_time = None
+    return tracking_schedule
 
-    for sat_name, rise_time, set_time, satellite in all_windows:
-        if last_set_time is None or rise_time > last_set_time:
-            non_overlapping_windows.append((sat_name, rise_time, set_time, satellite))
-            last_set_time = set_time
+def add_to_sequential_schedule(existing_schedule, satellites_to_add, start_time, end_time, latitude, longitude, topos):
+    # If there's an existing schedule, pick the end time of the last satellite. Otherwise, use the start_time as the starting point.
+    current_start_time = existing_schedule[-1][2] if existing_schedule else start_time
 
-    return non_overlapping_windows
+    # Iterate over the satellites to add
+    for satellite in satellites_to_add:
+        windows = get_all_viewing_windows(satellite, current_start_time, end_time, topos, latitude, longitude)
 
+        # If there are windows available for the satellite
+        if windows:
+            rise_time, set_time = windows[0]  # We take the first available window
+            existing_schedule.append((satellite.name, rise_time, set_time, satellite))
+            current_start_time = set_time  # Update the current start time for the next satellite
+
+    return existing_schedule
 
 def get_azimuth_elevation(satellite, topos):
     
@@ -121,12 +133,37 @@ def get_azimuth_elevation(satellite, topos):
     return az.degrees, alt.degrees
 
 
+def load_tle_from_string(tle_string):
+    """
+    Parse TLEs from a string and return the corresponding satellites.
+    
+    Parameters:
+        tle_string (str): The TLE string containing one or multiple TLE entries.
+    
+    Returns:
+        list: List of Satellite objects parsed from the TLE string.
+    """
+    lines = tle_string.strip().split("\n")
+    satellites = []
+    
+    for i in range(0, len(lines), 3):
+        name = lines[i].strip()
+        line1 = lines[i+1].strip()
+        line2 = lines[i+2].strip()
+        satellite = EarthSatellite(line1, line2, name, load.timescale())
+        satellites.append(satellite)
+    
+    return satellites
+
+
 if __name__ == "__main__":
     tle_file = 'satellites.tle'
-    start_time = datetime(2023, 9, 7, 0, 0)
-    end_time = datetime(2023, 9, 10, 23, 59)
+    
+
     latitude, longitude  = 37.2299995422363, -80.4179992675781
     local_timezone = pytz.timezone(determine_timezone(latitude, longitude))
+    start_time = local_timezone.localize(datetime(2023, 9, 7, 0, 0))
+    end_time = local_timezone.localize(datetime(2023, 9, 10, 23, 59))
     print(f"Timezone: {local_timezone}")
 
     topos = Topos(latitude_degrees=latitude, longitude_degrees=longitude, elevation_m=0)
@@ -136,7 +173,7 @@ if __name__ == "__main__":
 
     get_azimuth_elevation(satellites[0], topos)
 
-    results = get_non_overlapping_non_repeating_schedule(satellites, start_time, end_time, latitude, longitude, topos)
+    results = get_sequential_tracking_schedule(satellites, start_time, end_time, latitude, longitude, topos)
     for res in results:
         print(f"Satellite: {res[0]}")
         print(f"Viewing Time: From {res[1]} to {res[2]}")
