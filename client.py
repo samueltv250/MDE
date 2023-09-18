@@ -2,6 +2,15 @@ import os
 from bluetooth import BluetoothSocket, BluetoothError, RFCOMM
 import time
 import pickle
+
+
+class CommandError(Exception):
+    def __init__(self, message="Invalid command."):
+        self.message = message
+        super().__init__(self.message)
+
+
+DATA_BASE_DIR = "/home/pi/Desktop/data_base"
 def send_message(sock, message, is_binary=False):
     # Serialize the message as bytes if it's not already
     data = message if is_binary else message.encode('utf-8')
@@ -57,19 +66,33 @@ def receive_file(sock, file_path, file_size):
     print("File received.")
 
 def run_via_terminal(sock):
+ 
     while True:
-            command = input("Enter command or 'get <file_path>': ")
+        try:
+            command = input("Enter command or 'get <file>': ")
             if command == "exit":
                 send_message(sock, command)
                 break
             elif command.startswith("shutdown") or command.startswith("reboot"):
                 send_message(sock, command)
-                response = receive_full_message(sock)
-                print(response)
                 break
-            elif command.startswith("add_to_queue"):  # New command to add satellite to the queue
-                # Test TLE to send
-                command = command + " " + """
+                
+            else:
+                interpret_command(command, sock)
+        except CommandError as e:
+            print(e)
+        except KeyboardInterrupt:
+            print("\nExiting...")
+            break
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            break
+
+
+def interpret_command(command, sock):
+    if command.startswith("add_to_queue"):  # New command to add satellite to the queue
+        # Test TLE to send
+        command = command + " " + """
 CSS (TIANHE)            
 1 48274U 21035A   23250.60323094  .00028729  00000+0  32278-3 0  9997
 2 48274  41.4752  14.6926 0010484 320.3089  39.6983 15.61907922134716
@@ -163,30 +186,67 @@ PROGRESS-MS 24
 CREW DRAGON 7           
 1 57697U 23128A   23250.54606199  .00010692  00000+0  19312-3 0  9998
 2 57697  51.6415 280.5283 0005852  40.5829 119.1724 15.50278646414563"""
-                send_message(sock, command)
-                response = receive_full_message(sock)
-                print(response)
-                continue
-            elif command.startswith("start_tracking"):
-                send_message(sock, command)
-                response = receive_full_message(sock)
-                print(response)
-                continue
-            elif command.startswith("getMeta"):
-                send_message(sock, command)
-                response = pickle.loads(receive_full_message(sock, as_bytes=True))
-                print(response)
-                continue
-            elif command.startswith("get"):
-                file_path = command.split(" ", 1)[1]
-                send_message(sock, command)
-                response = receive_full_message(sock)
-                if response == "File not found":
-                    print(response)
-                else:
-                    file_size = int(response)
-                    destination_path = os.path.join(os.getcwd(), os.path.basename(file_path))
-                    receive_file(sock, destination_path, file_size)
+        send_message(sock, command)
+        response = receive_full_message(sock)
+        print(response)
+
+    elif command.startswith("start_tracking"):
+        send_message(sock, command)
+        response = receive_full_message(sock)
+        print(response)
+
+    elif command.startswith("getMeta"):
+        send_message(sock, command)
+        response = pickle.loads(receive_full_message(sock, as_bytes=True))
+
+        # Extracting the components from the response for better readability
+        current_time = response["current_time"]
+        directory_files = response["data"]
+        modified_schedule = response["schedule"]
+        modified_processed_satellites = response["processed_schedule"]
+        tracking_status = response["tracking"]
+
+        # Print current time
+        print(f"Current Time on Raspberry Pi: {current_time}")
+
+        # Print tracking status
+        print(f"Tracking Status: {'On' if tracking_status else 'Off'}\n")
+
+
+        # Print list of files
+        print("Directory Files:")
+        for file in directory_files.split("\n"):
+            print(f"- {file}")
+
+        print("\nSchedule:")
+        for satellite in modified_schedule:
+            print(f"- Satellite Name: {satellite[0]}")
+            print(f"  Rise Time: {satellite[1]}")
+            print(f"  Set Time: {satellite[2]}\n")
+
+        print("Processed Schedule:")
+        for satellite in modified_processed_satellites:
+            print(f"- Satellite Name: {satellite[0]}")
+            print(f"  Rise Time: {satellite[1]}")
+            print(f"  Set Time: {satellite[2]}\n")
+
+ 
+    elif command.startswith("get"):
+        file_path = command.split(" ", 1)[1]
+
+        file_path = DATA_BASE_DIR + "/" + file_path
+        command = "get " + file_path
+        send_message(sock, command)
+        response = receive_full_message(sock)
+        if response == "File not found":
+            print(response)
+        else:
+            file_size = int(response)
+            destination_path = os.path.join(os.getcwd(), os.path.basename(file_path))
+            receive_file(sock, destination_path, file_size)
+    else:
+        raise CommandError(f"'{command}' is not a recognized command.")
+
 
 def main():
     # unique MAC address for Raspberry Pi (slave)

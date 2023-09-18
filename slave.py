@@ -8,7 +8,9 @@ import scheduler
 from datetime import datetime, timedelta
 from scheduler import Topos, pytz, determine_timezone
 import pickle
-DATA_BASE_DIR = "/home/pi/Desktop"
+
+
+DATA_BASE_DIR = "/home/pi/Desktop/data_base"
 
 
 def send_message(sock, message, is_binary=False):
@@ -56,7 +58,7 @@ class SatelliteTracker:
         self.satellites = []
         self.already_processed_satellites = []
         # Flag to stop the tracking process
-        self.stop_signal = False
+        self.stop_signal = True
 
         # Placeholder for gps module
         self.latitude = 37.2299995422363
@@ -101,6 +103,7 @@ class SatelliteTracker:
 
 
             self.already_processed_satellites.append(item)
+        self.stop_signal = True
 
     def concurrent_schedule(self):
         self.schedule_thread = threading.Thread(target=self.create_schedule)  # Assign the thread to an instance variable
@@ -163,7 +166,7 @@ class SatelliteTracker:
                     modified_schedule = [row[:-1] for row in self.schedule]
                     modified_processed_satellites = [row[:-1] for row in self.already_processed_satellites]
 
-                    meta_data = [directory_files, modified_schedule, modified_processed_satellites]
+                    meta_data = {"current_time": pytz.utc.localize(datetime.utcnow()), "data": directory_files, "schedule": modified_schedule, "processed_schedule": modified_processed_satellites, "tracking": not self.stop_signal}
 
                     serialized_data = pickle.dumps(meta_data)
                     send_message(client_sock, serialized_data, is_binary=True)
@@ -187,6 +190,11 @@ class SatelliteTracker:
                 elif data.startswith("start_tracking"):
                     self.start_tracking()
                     send_message(client_sock, "Tracking started.")
+                elif data.startswith("stop_tracking"):
+                    self.stop_tracking()
+                    send_message(client_sock, "Tracking stopped.")
+       
+
                 else:
                     print("Queue is empty!")
 

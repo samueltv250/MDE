@@ -103,18 +103,13 @@ def add_to_sequential_schedule(existing_schedule, satellites_to_add, start_time,
 
 def get_azimuth_elevation(satellite, topos):
     
-    # Load timescale object
-    local_timezone = pytz.timezone(determine_timezone(latitude, longitude))
 
-    # Create a timezone-aware datetime object
-    aware_datetime = local_timezone.localize(datetime.now())
-
-    # Convert the timezone-aware datetime to UTC
-    utc_datetime = aware_datetime.astimezone(pytz.utc)
+    utc_datetime = datetime.utcnow()
 
     # Convert the UTC datetime to a Time instance
     t = ts.utc(utc_datetime.year, utc_datetime.month, utc_datetime.day,
-               utc_datetime.hour, utc_datetime.minute, utc_datetime.second)
+            utc_datetime.hour, utc_datetime.minute, utc_datetime.second)
+
 
 
     print(f"Current time: {t.utc_datetime()} in UTC")
