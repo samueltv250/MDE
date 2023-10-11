@@ -91,7 +91,7 @@ def run_via_terminal(sock):
 
 def interpret_command(command, sock):
     if command.startswith("add_to_queue"):  # New command to add satellite to the queue
-        # Test TLE to send
+        # Test TLE file to send
         command = command + " " + """
 CSS (TIANHE)            
 1 48274U 21035A   23250.60323094  .00028729  00000+0  32278-3 0  9997
@@ -185,12 +185,26 @@ PROGRESS-MS 24
 2 57691  51.6415 280.5283 0005852  40.5829 119.1724 15.50278646414567
 CREW DRAGON 7           
 1 57697U 23128A   23250.54606199  .00010692  00000+0  19312-3 0  9998
-2 57697  51.6415 280.5283 0005852  40.5829 119.1724 15.50278646414563"""
+2 57697  51.6415 280.5283 0005852  40.5829 119.1724 15.50278646414563
+
+CSS (TIANHE): 100, 2000
+ISS (NAUKA): 100, 2000"""
         send_message(sock, command)
         response = receive_full_message(sock)
         print(response)
 
     elif command.startswith("start_tracking"):
+        send_message(sock, command)
+        response = receive_full_message(sock)
+        print(response)
+
+    elif command.startswith("calibrate"):
+        send_message(sock, command)
+        response = receive_full_message(sock)
+        print(response)
+
+    elif command.startswith("calibrate"):
+        # bandwidth, centerfrequency, samplerate
         send_message(sock, command)
         response = receive_full_message(sock)
         print(response)
@@ -212,7 +226,6 @@ CREW DRAGON 7
         # Print tracking status
         print(f"Tracking Status: {'On' if tracking_status else 'Off'}\n")
 
-
         # Print list of files
         print("Directory Files:")
         for file in directory_files.split("\n"):
@@ -229,7 +242,6 @@ CREW DRAGON 7
             print(f"- Satellite Name: {satellite[0]}")
             print(f"  Rise Time: {satellite[1]}")
             print(f"  Set Time: {satellite[2]}\n")
-
  
     elif command.startswith("get"):
         file_path = command.split(" ", 1)[1]

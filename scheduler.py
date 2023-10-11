@@ -1,28 +1,34 @@
-from skyfield.api import Topos, load, EarthSatellite
-
-
+from skyfield.api import Topos, load, EarthSatellite, wgs84
 from datetime import datetime
 import pytz
-import io
 from timezonefinder import TimezoneFinder
 
 ts = load.timescale()
 
+def determine_timezone(latitude, longitude):
+    tf = TimezoneFinder()
+    return tf.timezone_at(lat=latitude, lng=longitude)
 
-def get_all_viewing_windows(satellite, start_time, end_time, topos, latitude, longitude):
+def get_all_viewing_windows(satellite, start_time, end_time, observer_location):
+    # This function was tested with publicly available tracking software and the results match.
+    # Software link: https://dl2rum.de/rotor/docs/en/pages/WinSats.html
+    if start_time.tzinfo is None or start_time.tzinfo.utcoffset(start_time) is None:
+        raise ValueError("start_time must be timezone-aware")
+    if end_time.tzinfo is None or end_time.tzinfo.utcoffset(end_time) is None:
+        raise ValueError("end_time must be timezone-aware")
 
-    start_time = start_time.astimezone(pytz.utc)
-    end_time = end_time.astimezone(pytz.utc)
-    # Convert the start and end time to a Time instance
-    t0 = ts.utc(start_time.year, start_time.month, start_time.day, start_time.hour, start_time.minute, start_time.second)
-    t1 = ts.utc(end_time.year, end_time.month, end_time.day, end_time.hour, end_time.minute, end_time.second)
-    # Find all the windows where the satellite is above 0 degrees elevation
-    times, events = satellite.find_events(topos, t0, t1, altitude_degrees=0.0)
+    start_time_utc = start_time.astimezone(pytz.utc)
+    end_time_utc = end_time.astimezone(pytz.utc)
+
+    t0 = ts.utc(start_time_utc.year, start_time_utc.month, start_time_utc.day, start_time_utc.hour, start_time_utc.minute, start_time_utc.second)
+    t1 = ts.utc(end_time_utc.year, end_time_utc.month, end_time_utc.day, end_time_utc.hour, end_time_utc.minute, end_time_utc.second)
+
+    times, events = satellite.find_events(observer_location, t0, t1)
     windows = []
     rise_time = None
 
-    # Determine local timezone based on latitude and longitude
-    local_timezone = pytz.timezone(determine_timezone(latitude, longitude))
+    # Determine local timezone directly based on latitude and longitude
+    local_timezone = pytz.timezone(determine_timezone(observer_location.latitude.degrees, observer_location.longitude.degrees))
 
     for time, event in zip(times, events):
         if event == 0:  # Satellite rises
@@ -32,15 +38,12 @@ def get_all_viewing_windows(satellite, start_time, end_time, topos, latitude, lo
             windows.append((rise_time, set_time))
             rise_time = None
 
-    # # Printing the viewing windows in local timezone
-    # for window in windows:
-    #     print(f"Viewing window for {satellite.name}: from {window[0]} to {window[1]} in timezone {local_timezone.zone}")
+    for window in windows:
+        print(f"Viewing window for {satellite.name}: from {window[0].strftime('%Y-%m-%d %H:%M:%S')} to {window[1].strftime('%Y-%m-%d %H:%M:%S')} in timezone {window[0].tzinfo.zone}")
 
     return windows
 
-def determine_timezone(latitude, longitude):
-    tf = TimezoneFinder()
-    return tf.timezone_at(lat=latitude, lng=longitude)
+
 
 def get_non_overlapping_non_repeating_schedule(satellites, start_time, end_time, latitude, longitude, topos):
     # Fetch all viewing windows for all satellites
@@ -76,19 +79,20 @@ def get_sequential_tracking_schedule(satellites, start_time, end_time, latitude,
     # Iterate over satellites based on their order
     for satellite in satellites:
         windows = get_all_viewing_windows(satellite, current_end_time, end_time, topos, latitude, longitude)
-
+        
         # If there are windows available for the satellite
         if windows:
             rise_time, set_time = windows[0]  # We take the first available window
             tracking_schedule.append((satellite.name, rise_time, set_time, satellite))
             current_end_time = set_time  # Update the current end time to avoid overlap
 
+
     return tracking_schedule
 
 def add_to_sequential_schedule(existing_schedule, satellites_to_add, start_time, end_time, latitude, longitude, topos):
     # If there's an existing schedule, pick the end time of the last satellite. Otherwise, use the start_time as the starting point.
     current_start_time = existing_schedule[-1][2] if existing_schedule else start_time
-
+    new_schedule = []
     # Iterate over the satellites to add
     for satellite in satellites_to_add:
         windows = get_all_viewing_windows(satellite, current_start_time, end_time, topos, latitude, longitude)
@@ -96,48 +100,34 @@ def add_to_sequential_schedule(existing_schedule, satellites_to_add, start_time,
         # If there are windows available for the satellite
         if windows:
             rise_time, set_time = windows[0]  # We take the first available window
-            existing_schedule.append((satellite.name, rise_time, set_time, satellite))
+            new_schedule.append((satellite.name, rise_time, set_time, satellite))
             current_start_time = set_time  # Update the current start time for the next satellite
 
-    return existing_schedule
+    return new_schedule
 
-def get_azimuth_elevation(satellite, topos):
-    
+def get_azimuth_elevation(satellite, observer_location):
+    # This function was tested with publicly available tracking software and the results match.
+    # Software link: https://dl2rum.de/rotor/docs/en/pages/WinSats.html
 
+    # Get the current UTC time
     utc_datetime = datetime.utcnow()
 
-    # Convert the UTC datetime to a Time instance
+    # Convert the current time to a Time instance
     t = ts.utc(utc_datetime.year, utc_datetime.month, utc_datetime.day,
-            utc_datetime.hour, utc_datetime.minute, utc_datetime.second)
+               utc_datetime.hour, utc_datetime.minute, utc_datetime.second)
 
+    # Compute the satellite's position relative to the observer's location
+    difference = satellite - observer_location
+    topocentric = difference.at(t)
 
-
-    print(f"Current time: {t.utc_datetime()} in UTC")
-
-    # Define observer's location
-    observer_location = topos
-
-    # Determine satellite's position at the given time
-    sat_position = satellite.at(t)
-    
-    # Determine the difference between the satellite's position and the observer's location    
-    difference = sat_position - observer_location.at(t)
-
-    alt, az, _ = difference.altaz()
+    # Compute altazimuth (azimuth, elevation) coordinates
+    alt, az, d = topocentric.altaz()
 
     return az.degrees, alt.degrees
 
 
+
 def load_tle_from_string(tle_string):
-    """
-    Parse TLEs from a string and return the corresponding satellites.
-    
-    Parameters:
-        tle_string (str): The TLE string containing one or multiple TLE entries.
-    
-    Returns:
-        list: List of Satellite objects parsed from the TLE string.
-    """
     lines = tle_string.strip().split("\n")
     satellites = []
     
@@ -152,24 +142,35 @@ def load_tle_from_string(tle_string):
 
 
 if __name__ == "__main__":
-    tle_file = 'satellites.tle'
-    
+    # tle_file = 'satellites.tle'
 
-    latitude, longitude  = 37.2299995422363, -80.4179992675781
+    # satellites = load.tle_file(tle_file)
+
+
+    stations_url = 'http://celestrak.org/NORAD/elements/stations.txt'
+    satellites = load.tle_file(stations_url)
+    satellites_dict = {sat.name: sat for sat in satellites}
+    specific_satellite = satellites_dict.get("ISS (ZARYA)")  # Replace with the desired satellite name
+
+    latitude, longitude  = 50.21573581795237, 8.26381093515386
     local_timezone = pytz.timezone(determine_timezone(latitude, longitude))
-    start_time = local_timezone.localize(datetime(2023, 9, 7, 0, 0))
-    end_time = local_timezone.localize(datetime(2023, 9, 10, 23, 59))
+    start_time = local_timezone.localize(datetime(2023, 10, 11, 0, 0))
+    end_time = local_timezone.localize(datetime(2023, 10, 19, 0, 0))
+
     print(f"Timezone: {local_timezone}")
 
-    topos = Topos(latitude_degrees=latitude, longitude_degrees=longitude, elevation_m=0)
+    # Using wgs84 for defining observer's position:
+    observer_location = wgs84.latlon(latitude, longitude)
 
-    satellites = load.tle_file(tle_file)
+    get_all_viewing_windows(specific_satellite, start_time, end_time, observer_location)
+    
+    az, el = get_azimuth_elevation(specific_satellite, observer_location)
 
-
-    get_azimuth_elevation(satellites[0], topos)
-
-    results = get_sequential_tracking_schedule(satellites, start_time, end_time, latitude, longitude, topos)
-    for res in results:
-        print(f"Satellite: {res[0]}")
-        print(f"Viewing Time: From {res[1]} to {res[2]}")
-        print(f"TLE:\n{res[3]}\n")
+    print(f"Satellite: {specific_satellite.name}")
+    print(f"Azimuth: {az}")
+    print(f"Elevation: {el}")
+    # results = get_sequential_tracking_schedule(satellites, start_time, end_time, latitude, longitude, topos)
+    # for res in results:
+    #     print(f"Satellite: {res[0]}")
+    #     print(f"Viewing Time: From {res[1]} to {res[2]}")
+    #     print(f"TLE:\n{res[3]}\n")
