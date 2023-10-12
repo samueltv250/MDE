@@ -44,7 +44,7 @@ def receive_full_message(sock, as_bytes=False):
 
 def connect_to_device(device_addr):
     sock = BluetoothSocket(RFCOMM)
-    for port in range(1, 31):  # Try ports 1 through 30
+    for port in range(2, 31):  # Try ports 1 through 30
         try:
             print("Attempting to connect on RFCOMM channel %d" % port)
 
@@ -203,7 +203,7 @@ ISS (NAUKA): 100, 2000"""
         response = receive_full_message(sock)
         print(response)
 
-    elif command.startswith("calibrate"):
+    elif command.startswith("move"):
         # bandwidth, centerfrequency, samplerate
         send_message(sock, command)
         response = receive_full_message(sock)

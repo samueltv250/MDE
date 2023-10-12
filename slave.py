@@ -14,6 +14,20 @@ import serial
 
 DATA_BASE_DIR = "/home/pi/Desktop/data_base"
 
+def find_arduino_port():
+    try:
+        # List all devices in /dev/ directory
+        devices = os.popen('ls /dev/').read()
+        
+        # Check for typical Arduino serial port names and return the first match
+        for device in ["ttyUSB", "ttyACM", "ttyS"]:
+            if device in devices:
+                arduino_port = os.popen(f'ls /dev/ | grep {device}').read().split("\n")[0]
+                return f"/dev/{arduino_port}"
+        return None
+    except Exception as e:
+        print(f"Error finding Arduino port: {e}")
+        return None
 
 def send_message(sock, message, is_binary=False):
     # Serialize the message as bytes if it's not already
@@ -75,7 +89,11 @@ def list_files(directory):
 
 
 class SatelliteTracker:
-    def __init__(self, serial_port='/dev/ttyUSB0', baudrate=9600):
+    def __init__(self, serial_port=None, baudrate=9600):
+        if serial_port is None:
+            serial_port = find_arduino_port()
+            if serial_port is None:
+                print("Unable to find Arduino port.")
 
         self.schedule = queue.Queue()
 
@@ -160,7 +178,7 @@ class SatelliteTracker:
     
     def move_to_position(self, azimuth, elevation):
         """Sends a command to move to a specific azimuth and elevation."""
-        cmd = f"MOVE {azimuth} {elevation}\n"
+        cmd = f"MOVE {azimuth}, {elevation}\n"
         self.ser.write(cmd.encode('utf-8'))
 
         # Wait for the response
@@ -180,11 +198,7 @@ class SatelliteTracker:
         # Wait for the response
         while True:
             response = self.ser.readline().decode('utf-8').strip()
-            if response == "Calibration complete!":
-                return True
-            elif "Error" in response:  # Adjust this condition based on the possible error messages from the Feather
-                print("Error:", response)
-                return False
+            return response
             
     def record(self, satellite, rise_time, set_time):
         # Calculate recording time per frequency based on rise and set time
@@ -262,11 +276,14 @@ class SatelliteTracker:
                     subprocess.run(["sudo", "reboot"])
                     send_message(client_sock, "Rebooting...")
                     break
-
+                elif data.lower().startswith("move"):
+                    self.ser.write(data.encode('utf-8'))
+                    send_message(client_sock, "moving")
+           
                 elif data.startswith("calibrate"):
-                    self.calibrate()
-                    send_message(client_sock, "finished calibrating")
-                    break
+                    msg = self.calibrate()
+                    send_message(client_sock, msg)
+ 
 
                 elif data.startswith("add_to_queue "):
                     lines = data.split('\n\n')
@@ -280,7 +297,7 @@ class SatelliteTracker:
                     directory_files = '\n'.join(list_files(DATA_BASE_DIR))
 
                     # Exclude the last column from each row in self.schedule and self.already_processed_satellites
-                    modified_schedule = [row[:-1] for row in self.schedule]
+                    modified_schedule = [row[:-1] for row in list(self.schedule)]
                     modified_processed_satellites = [row[:-1] for row in self.already_processed_satellites]
 
                     meta_data = {"current_time": pytz.utc.localize(datetime.utcnow()), "data": directory_files, "schedule": modified_schedule, "processed_schedule": modified_processed_satellites, "tracking": not self.stop_signal}

@@ -1,10 +1,6 @@
 #include <Arduino.h>
 
-// Define EEPROM addresses for storing calibration values
-const int EEPROM_AZIMUTH_MIN = 0;
-const int EEPROM_AZIMUTH_MAX = 4;
-const int EEPROM_ELEVATION_MIN = 8;
-const int EEPROM_ELEVATION_MAX = 12;
+
 
 int azimuthMin = 10;    // Default value
 int azimuthMax = 629;   // Default value
@@ -37,19 +33,17 @@ void setup() {
   digitalWrite(pinDown, LOW);
   digitalWrite(pinLeft, LOW);
   digitalWrite(pinRight, LOW);
-  azimuthMin = EEPROM.get(EEPROM_AZIMUTH_MIN, azimuthMin);
-  azimuthMax = EEPROM.get(EEPROM_AZIMUTH_MAX, azimuthMax);
-  elevationMin = EEPROM.get(EEPROM_ELEVATION_MIN, elevationMin);
-  elevationMax = EEPROM.get(EEPROM_ELEVATION_MAX, elevationMax);
-
-}
+  currentElevation = readElevation();
+  currentAzimuth = readAzimuth();  // Update position after movement
+  }
 
 void loop() {
 
   if (Serial.available() > 0) {
 
     String command = Serial.readString();
-    if (command == "calibrate") {
+    if (command.startsWith("calibrate")) {
+
       calibrate();
     } else {
       int separatorIndex = command.indexOf(',');
@@ -66,38 +60,38 @@ void loop() {
 void calibrate() {
 
   digitalWrite(pinLeft, HIGH);
-  delay(120000);
+  delay(80000);
   digitalWrite(pinLeft, LOW);
   azimuthMin = min(azimuthMin, analogRead(pinStatusAzimuth));
 
 
 
   digitalWrite(pinRight, HIGH);
-  delay(120000);
+  delay(80000);
   digitalWrite(pinRight, LOW);
   azimuthMax = max(azimuthMax, analogRead(pinStatusAzimuth));
 
 
 
   digitalWrite(pinUp, HIGH);
-  delay(120000);
+  delay(80000);
   digitalWrite(pinUp, LOW);
   elevationMax = max(elevationMax, analogRead(pinStatusElevation));
 
 
   digitalWrite(pinDown, HIGH);
-  delay(120000);
+  delay(80000);
   digitalWrite(pinDown, LOW);
   elevationMin = min(elevationMin, analogRead(pinStatusElevation));
 
-
-  // Store calibration values in EEPROM
-  EEPROM.put(EEPROM_AZIMUTH_MIN, azimuthMin);
-  EEPROM.put(EEPROM_AZIMUTH_MAX, azimuthMax);
-  EEPROM.put(EEPROM_ELEVATION_MIN, elevationMin);
-  EEPROM.put(EEPROM_ELEVATION_MAX, elevationMax);
-
-  Serial.println("Calibration complete!");
+  Serial.print("Azimuth Min: ");
+  Serial.print(azimuthMin);
+  Serial.print(", Azimuth Max: ");
+  Serial.print(azimuthMax);
+  Serial.print(", Elevation Min: ");
+  Serial.print(elevationMin);
+  Serial.print(", Elevation Max: ");
+  Serial.println(elevationMax);
 }
 
 void moveMount(int desiredAzimuth, int desiredElevation) {
@@ -131,8 +125,8 @@ void moveMount(int desiredAzimuth, int desiredElevation) {
     digitalWrite(pinDown, LOW);
     currentElevation = readElevation();
   }
+  Serial.println("Moved");
 
-  Serial.println("Moved successfully to possition");
 }
 
 int readAzimuth() {
