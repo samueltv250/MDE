@@ -20,7 +20,7 @@ def find_arduino_port():
         devices = os.popen('ls /dev/').read()
         
         # Check for typical Arduino serial port names and return the first match
-        for device in ["ttyUSB", "ttyACM", "ttyS"]:
+        for device in ["ttyUSB", "ttyACM"]:
             if device in devices:
                 arduino_port = os.popen(f'ls /dev/ | grep {device}').read().split("\n")[0]
                 return f"/dev/{arduino_port}"
@@ -162,9 +162,11 @@ class SatelliteTracker:
 
     def create_schedule(self):
         print(f"Creating schedule")
-
+        old_schedule = []
+        while not self.schedule.empty():
+            old_schedule.append(self.schedule.get())
         # self.schedule = scheduler.get_sequential_tracking_schedule(self.satellites, self.start_time, self.end_time, self.latitude, self.longitude, self.topos)
-        new_schedule = scheduler.add_to_sequential_schedule(self.schedule, self.satellites, self.start_time, self.end_time, self.latitude, self.longitude, self.topos)
+        new_schedule = scheduler.add_to_sequential_schedule(old_schedule, self.satellites, self.start_time, self.end_time, self.latitude, self.longitude, self.topos)
 
         for item in new_schedule:
             self.schedule.put(item)
@@ -297,7 +299,7 @@ class SatelliteTracker:
                     directory_files = '\n'.join(list_files(DATA_BASE_DIR))
 
                     # Exclude the last column from each row in self.schedule and self.already_processed_satellites
-                    modified_schedule = [row[:-1] for row in list(self.schedule)]
+                    modified_schedule = [row[:-1] for row in list(self.schedule.queue)]
                     modified_processed_satellites = [row[:-1] for row in self.already_processed_satellites]
 
                     meta_data = {"current_time": pytz.utc.localize(datetime.utcnow()), "data": directory_files, "schedule": modified_schedule, "processed_schedule": modified_processed_satellites, "tracking": not self.stop_signal}
@@ -341,6 +343,28 @@ class SatelliteTracker:
 if __name__ == "__main__":
     # Create SatelliteTracker instance
     tracker = SatelliteTracker()
+    tracker.satellites = """CSS (TIANHE)            
+1 48274U 21035A   23250.60323094  .00028729  00000+0  32278-3 0  9997
+2 48274  41.4752  14.6926 0010484 320.3089  39.6983 15.61907922134716
+ISS (NAUKA)             
+1 49044U 21066A   23250.54606199  .00010692  00000+0  19312-3 0  9994
+2 49044  51.6415 280.5283 0005852  40.5829 119.1724 15.50278646414560
+FREGAT DEB              
+1 49271U 11037PF  23249.81523963  .00005232  00000+0  17878-1 0  9995
+2 49271  51.6235  75.4294 0907707 244.0940 106.3644 12.05002786100748
+CSS (WENTIAN)           
+1 53239U 22085A   23250.41140741  .00030442  00000+0  34184-3 0  9998
+2 53239  41.4752  15.8612 0010490 318.7503  41.2543 15.61898836 64117
+CSS (MENGTIAN)          
+1 54216U 22143A   23250.41140741  .00030442  00000+0  34184-3 0  9999
+2 54216  41.4752  15.8612 0010490 318.7503  41.2543 15.61898836134683
+TIANZHOU-5              
+1 54237U 22152A   23250.41140741  .00030442  00000+0  34184-3 0  9992
+2 54237  41.4752  15.8612 0010490 318.7503  41.2543 15.61898836134686
+SPORT                   
+1 55129U 98067UW  23250.41096130  .00205883  00000+0  74258-3 0  9992
+2 55129  51.6227 253.5459 0008158  53.6155 306.5601 15.87498635 39512"""
 
+    tracker.concurrent_schedule()
     # Start listening for commands
-    tracker.rec_on_exit()
+    # tracker.rec_on_exit()
