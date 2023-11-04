@@ -38,7 +38,10 @@ void setup() {
   }
 
 void loop() {
-
+    digitalWrite(pinRight, HIGH);
+    delay(100); // Delay will be the amount of time it takes to move 1 degree or 1 step
+    digitalWrite(pinRight, LOW);
+    
   if (Serial.available() > 0) {
 
     String command = Serial.readString();

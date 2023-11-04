@@ -80,12 +80,16 @@ def get_sequential_tracking_schedule(satellites, start_time, end_time, latitude,
     for satellite in satellites:
         windows = get_all_viewing_windows(satellite, current_end_time, end_time, topos, latitude, longitude)
         
+        # Sort the windows based on the rise time
+        sorted_windows = sorted(windows, key=lambda x: x[0])
+        
         # If there are windows available for the satellite
-        if windows:
-            rise_time, set_time = windows[0]  # We take the first available window
-            tracking_schedule.append((satellite.name, rise_time, set_time, satellite))
-            current_end_time = set_time  # Update the current end time to avoid overlap
-
+        for rise_time, set_time in sorted_windows:
+            # Ensure the rise time is after the current end time
+            if rise_time > current_end_time:
+                tracking_schedule.append((satellite.name, rise_time, set_time, satellite))
+                current_end_time = set_time  # Update the current end time to avoid overlap
+                break  # Break after scheduling the first non-overlapping window
 
     return tracking_schedule
 
@@ -93,17 +97,24 @@ def add_to_sequential_schedule(existing_schedule, satellites_to_add, start_time,
     # If there's an existing schedule, pick the end time of the last satellite. Otherwise, use the start_time as the starting point.
     current_start_time = existing_schedule[-1][2] if existing_schedule else start_time
     new_schedule = []
+
     # Iterate over the satellites to add
     for satellite in satellites_to_add:
         windows = get_all_viewing_windows(satellite, current_start_time, end_time, topos, latitude, longitude)
+        
+        # Sort the windows based on the rise time
+        sorted_windows = sorted(windows, key=lambda x: x[0])
 
         # If there are windows available for the satellite
-        if windows:
-            rise_time, set_time = windows[0]  # We take the first available window
-            new_schedule.append((satellite.name, rise_time, set_time, satellite))
-            current_start_time = set_time  # Update the current start time for the next satellite
+        for rise_time, set_time in sorted_windows:
+            # Ensure the rise time is after the last set time from the existing schedule
+            if not existing_schedule or rise_time > existing_schedule[-1][2]:
+                new_schedule.append((satellite.name, rise_time, set_time, satellite))
+                current_start_time = set_time  # Update the current start time for the next satellite
+                break  # Break after scheduling the first non-overlapping window
 
-    return new_schedule
+    return existing_schedule + new_schedule
+
 
 def get_azimuth_elevation(satellite, observer_location):
     # This function was tested with publicly available tracking software and the results match.

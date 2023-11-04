@@ -11,6 +11,7 @@ import pickle
 import queue
 from rtlsdr import RtlSdr
 import serial
+import gps
 
 DATA_BASE_DIR = "/home/pi/Desktop/data_base"
 
@@ -90,11 +91,15 @@ def list_files(directory):
 
 class SatelliteTracker:
     def __init__(self, serial_port=None, baudrate=9600):
+        self.gps = gps.init_gps()   # Initialize the GPS module
+
+
         if serial_port is None:
+            time.sleep(5) # Allow some time for the Raspberry Pi to detect the Arduino
             serial_port = find_arduino_port()
             if serial_port is None:
                 print("Unable to find Arduino port.")
-
+        
         self.schedule = queue.Queue()
 
         self.satellites = []
@@ -104,19 +109,16 @@ class SatelliteTracker:
         self.stop_signal = True
         self.default_frequency = 1e6
         # Placeholder for gps module
-        self.latitude = 37.2299995422363
-        self.longitude = -80.4179992675781
+        self.latitude, self.longitude = gps.get_coordinates(self.gps)
+
         self.topos = Topos(latitude_degrees=self.latitude, longitude_degrees=self.longitude, elevation_m=0)
         self.local_timezone = pytz.timezone(determine_timezone(self.latitude, self.longitude))
 
-        # Getting the current UTC time
-        utc_now = pytz.utc.localize(datetime.utcnow())
-        uts_plus_one_day = utc_now + timedelta(days=1)
-        self.start_time = utc_now.astimezone(self.local_timezone)                # Current time
+        self.start_time = None
+        self.end_time = None
 
         print("Current time: ", self.start_time)
         print("Timezone: ", self.local_timezone)
-        self.end_time = uts_plus_one_day.astimezone(self.local_timezone)        # Current time plus 1 day
         self.ser = serial.Serial(serial_port, baudrate)
         time.sleep(2)  # Allow some time for connection to establish
 
@@ -162,6 +164,13 @@ class SatelliteTracker:
 
     def create_schedule(self):
         print(f"Creating schedule")
+             # Getting the current UTC time
+        local_now = datetime.now(self.local_timezone)
+        utc_now = pytz.utc.localize(datetime.utcnow())
+        uts_plus_five_hours = utc_now + timedelta(hours=5) # 5 hours ahead of UTC
+        self.start_time = utc_now.astimezone(self.local_timezone)                # Current time
+        self.end_time = uts_plus_five_hours.astimezone(self.local_timezone)        # Current time plus 1 day
+
         old_schedule = []
         while not self.schedule.empty():
             old_schedule.append(self.schedule.get())
@@ -173,6 +182,7 @@ class SatelliteTracker:
         self.satellites = []
         
         print(f"Schedule created")
+        return new_schedule
 
     def getData(self):
         # returns metadata for GUI, such as directory content, currently tracking satellit, progress
@@ -205,38 +215,41 @@ class SatelliteTracker:
     def record(self, satellite, rise_time, set_time):
         # Calculate recording time per frequency based on rise and set time
         total_time = (set_time - rise_time).seconds
-        num_frequencies = len(self.satellites_frequencies[satellite.name])
-        time_per_frequency = total_time / num_frequencies
+
+        time_per_frequency = total_time
         frequencies = self.satellites_frequencies[satellite.name]
         if len(frequencies) == 0:
             print(f"No frequencies for satellite {satellite.name}")
             print(f"Defaulting to 1MHz")
-            frequencies = [self.default_frequency]
-        # Iterate over the frequencies for the current satellite
-        for freq in frequencies:
-            # Initialize RTL-SDR device
-            sdr = RtlSdr()
-            sdr.sample_rate = 2.0486e6
-            sdr.center_freq = freq  # Set center frequency
-            sdr.gain = 0  # Set gain (could be modified)
+            freq = self.default_frequency
+        else:
+            freq = frequencies[0]
+            frequencies.pop(0)
 
-            # Calculate number of samples based on time_per_frequency
-            number_of_samples = int(sdr.sample_rate * time_per_frequency)
+        # Initialize RTL-SDR device
+        sdr = RtlSdr()
+        sdr.sample_rate = 2.0486e6
+        sdr.center_freq = freq  # Set center frequency
+        sdr.gain = 0  # Set gain (could be modified)
 
-            # Record samples
-            samples = sdr.read_samples(number_of_samples)
+        # Calculate number of samples based on time_per_frequency
+        number_of_samples = int(sdr.sample_rate * time_per_frequency)
 
-            # Close RTL-SDR device
-            sdr.close()
+        # Record samples
+        samples = sdr.read_samples(number_of_samples)
 
-            # Save samples to a file
-            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-            filename = f"{satellite.name}_{freq}Hz_{timestamp}.pkl"
-            file_path = os.path.join(DATA_BASE_DIR, filename)
-            with open(file_path, 'wb') as f:
-                pickle.dump(samples, f)
+        # Close RTL-SDR device
+        sdr.close()
 
-            print(f"Recorded for satellite {satellite.name} at frequency {freq}Hz")
+        # Save samples to a file
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        filename = f"{satellite.name}_{freq}Hz_{timestamp}.pkl"
+        file_path = os.path.join(DATA_BASE_DIR, filename)
+        with open(file_path, 'wb') as f:
+            pickle.dump(samples, f)
+
+        print(f"Recorded for satellite {satellite.name} at frequency {freq}Hz")
+        
 
     def track_and_record_satellite(self, satellite, rise_time, set_time):
         # start recording on a separate thread
@@ -285,15 +298,28 @@ class SatelliteTracker:
                 elif data.startswith("calibrate"):
                     msg = self.calibrate()
                     send_message(client_sock, msg)
- 
+
+                # setViewingWindow
+                elif data.startswith("setViewingWindow"):
+                    parts = data.split(" ")
+                    command = parts[0]
+                    start_time = " ".join(parts[1:3])  # Joins the second and third parts
+                    end_time = " ".join(parts[3:5])  # Joins the fourth and fifth parts
+
+                    # time are entered in the local timezone, must make timezone aware
+                    start_time = self.local_timezone.localize(datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S"))
+                    end_time = self.local_timezone.localize(datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S"))
+                    self.start_time = start_time
+                    self.end_time = end_time
 
                 elif data.startswith("add_to_queue "):
                     lines = data.split('\n\n')
 
                     self.satellites = scheduler.load_tle_from_string(lines[0].replace("add_to_queue ", ""))
                     self.satellites_frequencies = parse_satellite_data(lines[1])
-                    self.concurrent_schedule()
-                    send_message(client_sock, "Updating schedule")
+                    # start generating schedule once all meta data is set, the default time range is 5 hours
+                    new_schedule = self.create_schedule()
+                    send_message(client_sock, "Schedule updated")
 
                 elif data.startswith("getMeta"):
                     directory_files = '\n'.join(list_files(DATA_BASE_DIR))
