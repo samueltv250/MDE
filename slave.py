@@ -119,6 +119,7 @@ class SatelliteTracker:
 
         print("Current time: ", self.start_time)
         print("Timezone: ", self.local_timezone)
+
         self.ser = serial.Serial(serial_port, baudrate)
         time.sleep(2)  # Allow some time for connection to establish
 
@@ -307,7 +308,21 @@ class SatelliteTracker:
                     elevation = float(parts[2])
                     msg = self.move_to_position(azimuth, elevation)
                     send_message(client_sock, msg)
-           
+                    
+                elif data.startswith("calibrate_date_time"):
+                    send_message(client_sock, "Waiting on date time info")
+                    datetime_info = pickle.loads(receive_full_message(client_sock, as_bytes=True))
+                    received_datetime = datetime.strptime(datetime_info['datetime'], "%Y-%m-%d %H:%M:%S")
+
+                    # Format the datetime for the 'date -s' command
+                    formatted_datetime = received_datetime.strftime("%Y-%m-%d %H:%M:%S")
+                    # Set the system date and time
+                    subprocess.call(['sudo', 'date', '-s', formatted_datetime])
+
+                    # Set the time zone
+                    time_zone = datetime_info['timezone']
+                    subprocess.call(['sudo', 'timedatectl', 'set-timezone', time_zone])
+                    send_message(client_sock, "Finished setting datetime")
                 elif data.startswith("calibrate"):
                     msg = self.calibrate()
                     send_message(client_sock, msg)
@@ -338,6 +353,7 @@ class SatelliteTracker:
                         self.end_time = uts_plus_five_hours.astimezone(self.local_timezone)
                     new_schedule = self.create_schedule()
                     send_message(client_sock, "Schedule updated")
+
 
                 elif data.startswith("getMeta"):
                     directory_files = '\n'.join(list_files(DATA_BASE_DIR))

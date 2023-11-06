@@ -1,98 +1,116 @@
 import os
-from bluetooth import BluetoothSocket, BluetoothError, RFCOMM
+from bluetooth import BluetoothSocket, RFCOMM, BluetoothError
 import time
 import pickle
+import datetime
 
 
 class CommandError(Exception):
     def __init__(self, message="Invalid command."):
-        self.message = message
-        super().__init__(self.message)
+        super().__init__(message)
 
 
-DATA_BASE_DIR = "/home/pi/Desktop/data_base"
-def send_message(sock, message, is_binary=False):
-    # Serialize the message as bytes if it's not already
-    data = message if is_binary else message.encode('utf-8')
+class BluetoothManager:
+    DATA_BASE_DIR = "/home/pi/Desktop/data_base"
 
-    # Send message length first
-    msg_len = len(data)
-    sock.send(str(msg_len).encode('utf-8'))
-    time.sleep(0.1)  # Small delay to allow the receiver to prepare
-    
-    # Send the actual message
-    while data:
-        sent = sock.send(data)
-        data = data[sent:]
+    def __init__(self, device_addr):
+        self.device_addr = device_addr
+        self.sock = self.connect_to_device()
 
+    def send_message(self, message, is_binary=False):
+        data = message if is_binary else message.encode('utf-8')
+        msg_len = len(data)
+        self.sock.send(str(msg_len).encode('utf-8'))
+        time.sleep(0.1)
+        while data:
+            sent = self.sock.send(data)
+            data = data[sent:]
 
-def receive_full_message(sock, as_bytes=False):
-    # First, get the message length
-    msg_len = int(sock.recv(10).decode('utf-8'))
-    received_data = []
-    bytes_left = msg_len
-    while bytes_left > 0:
-        chunk = sock.recv(min(bytes_left, 1024))
-        received_data.append(chunk)
-        bytes_left -= len(chunk)
+    def receive_full_message(self, as_bytes=False):
+        msg_len = int(self.sock.recv(10).decode('utf-8'))
+        received_data = []
+        bytes_left = msg_len
+        while bytes_left > 0:
+            chunk = self.sock.recv(min(bytes_left, 1024))
+            received_data.append(chunk)
+            bytes_left -= len(chunk)
+        return b''.join(received_data) if as_bytes else b''.join(received_data).decode('utf-8')
 
-    if as_bytes:
-        return b''.join(received_data)
-    else:
-        return b''.join(received_data).decode('utf-8')
+    def connect_to_device(self):
+        sock = BluetoothSocket(RFCOMM)
+        for port in range(1, 31):
+            try:
+                print(f"Attempting to connect on RFCOMM channel {port}")
+                sock.connect((self.device_addr, port))
+                return sock
+            except OSError:
+                pass
+        print("Failed to connect to any port.")
+        sock.close()
+        return None
 
+    def receive_file(self, file_path, file_size):
+        with open(file_path, "wb") as f:
+            received = 0
+            while received < file_size:
+                data = self.sock.recv(1024)
+                received += len(data)
+                f.write(data)
+        print("File received.")
 
-def connect_to_device(device_addr):
-    sock = BluetoothSocket(RFCOMM)
-    for port in range(1, 31):  # Try ports 1 through 30
+    def run_via_terminal(self):
         try:
-            print("Attempting to connect on RFCOMM channel %d" % port)
-
-            sock.connect((device_addr, port))
-            return sock
-        except OSError as e:
-            pass
-    print("Failed to connect to any port.")
-    sock.close()
-    return None
-
-def receive_file(sock, file_path, file_size):
-    with open(file_path, "wb") as f:
-        received = 0
-        while received < file_size:
-            data = sock.recv(1024)
-            received += len(data)
-            f.write(data)
-    print("File received.")
-
-def run_via_terminal(sock):
- 
-    while True:
-        try:
-            command = input("Enter command or 'get <file>': ")
-            if command == "exit":
-                send_message(sock, command)
-                break
-            elif command.startswith("shutdown") or command.startswith("reboot"):
-                send_message(sock, command)
-                break
-                
-            else:
-                interpret_command(command, sock)
+            while True:
+                command = input("Enter command or 'get <file>': ")
+                if command == "exit":
+                    self.send_message(command)
+                    break
+                elif command.startswith("shutdown") or command.startswith("reboot"):
+                    self.send_message(command)
+                    break
+                else:
+                    self.interpret_command(command)
         except CommandError as e:
             print(e)
         except KeyboardInterrupt:
             print("\nExiting...")
-            break
         except Exception as e:
             print(f"An error occurred: {e}")
-            break
 
+    def interpret_command(self, command):
+        response = None
+        if command.startswith("add_to_queue"):
+            self.add_to_queue(command)
 
-def interpret_command(command, sock):
-    response = None
-    if command.startswith("add_to_queue"):  # New command to add satellite to the queue
-        # Test TLE file to send
+        elif command.startswith("start_tracking"):
+            self.start_tracking(command)
+
+        elif command.startswith("calibrate_date_time"):
+            self.calibrate_date_time(command)
+
+        elif command.startswith("calibrate"):
+            self.calibrate(command)
+
+        elif command.startswith("move"):
+            self.move(command)
+
+        elif command.startswith("setViewingWindow"):
+            self.set_viewing_window(command)
+
+        elif command.startswith("stop_tracking"):
+            self.stop_tracking(command)
+
+        elif command.startswith("getMeta"):
+            self.get_meta(command)
+
+        elif command.startswith("get"):
+            self.get_file(command)
+
+        else:
+            raise CommandError(f"'{command}' is not a recognized command.")
+
+    def add_to_queue(self, command):
+        # Testa
         command = command + " " + """
 CSS (TIANHE)            
 1 48274U 21035A   23250.60323094  .00028729  00000+0  32278-3 0  9997
@@ -118,98 +136,103 @@ SPORT
 
 CSS (TIANHE): 100, 2000
 ISS (NAUKA): 100, 2000"""
-        send_message(sock, command)
-        response = receive_full_message(sock)
 
-    elif command.startswith("start_tracking"):
-        send_message(sock, command)
-        response = receive_full_message(sock)
+        self.send_message(command)
+        response = self.receive_full_message()
+        print(response)
 
-    elif command.startswith("calibrate"):
-        send_message(sock, command)
-        response = receive_full_message(sock)
+    def start_tracking(self, command):
+        self.send_message(command)
+        response = self.receive_full_message()
+        print(response)
 
-    elif command.startswith("move"):
-        # bandwidth, centerfrequency, samplerate
-        send_message(sock, command)
-        response = receive_full_message(sock)
+    def calibrate_date_time(self, command):
+        self.send_message(command)
+        response = self.receive_full_message()
+        print(response)
 
-    elif command.startswith("setViewingWindow"):
-        # bandwidth, centerfrequency, samplerate
-        send_message(sock, command)
-        response = receive_full_message(sock)
-    
-    elif command.startswith("stop_tracking"):
-        send_message(sock, command)
-        response = receive_full_message(sock)
+        # Serialize and send the current date time
+        current_datetime = datetime.datetime.now()
+        time_zone = datetime.datetime.now(datetime.timezone.utc).astimezone().tzname()
+        datetime_info = {
+            "datetime": current_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+            "timezone": time_zone
+        }
+        serialized_data = pickle.dumps(datetime_info)
+        self.send_message(serialized_data, is_binary=True)
+        response = self.receive_full_message()
+        print(response)
 
-    elif command.startswith("getMeta"):
-        send_message(sock, command)
-        response = pickle.loads(receive_full_message(sock, as_bytes=True))
+    def calibrate(self, command):
+        self.send_message(command)
+        response = self.receive_full_message()
+        print(response)
 
-        # Extracting the components from the response for better readability
+    def move(self, command):
+        self.send_message(command)
+        response = self.receive_full_message()
+        print(response)
+
+    def set_viewing_window(self, command):
+        self.send_message(command)
+        response = self.receive_full_message()
+        print(response)
+
+    def stop_tracking(self, command):
+        self.send_message(command)
+        response = self.receive_full_message()
+        print(response)
+
+    def get_meta(self, command):
+        self.send_message(command)
+        response = pickle.loads(self.receive_full_message(as_bytes=True))
+
+        # Extract and print the metadata
         current_time = response["current_time"]
         directory_files = response["data"]
         modified_schedule = response["schedule"]
         modified_processed_satellites = response["processed_schedule"]
         tracking_status = response["tracking"]
+        time_zone = datetime.datetime.now(datetime.timezone.utc).astimezone().tzname()
 
-        # Print current time
-        print(f"Current Time on Raspberry Pi: {current_time}")
-
-        # Print tracking status
+        print(f"Current Time on Raspberry Pi: {current_time.strftime('%Y-%m-%d %H:%M:%S')} {time_zone}")
         print(f"Tracking Status: {'On' if tracking_status else 'Off'}\n")
-
-        # Print list of files
         print("Directory Files:")
         for file in directory_files.split("\n"):
             print(f"- {file}")
-
         print("\nSchedule:")
         for satellite in modified_schedule:
             print(f"- Satellite Name: {satellite[0]}")
             print(f"  Rise Time: {satellite[1]}")
             print(f"  Set Time: {satellite[2]}\n")
-    
         print("Processed Schedule:")
         for satellite in modified_processed_satellites:
             print(f"- Satellite Name: {satellite[0]}")
             print(f"  Rise Time: {satellite[1]}")
             print(f"  Set Time: {satellite[2]}\n")
-        return response
-    elif command.startswith("get"):
+
+    def get_file(self, command):
         file_path = command.split(" ", 1)[1]
-        #  directory where the files are stored locall
-        file_path = DATA_BASE_DIR + "/" + file_path
-        command = "get " + file_path
-        send_message(sock, command)
-        response = receive_full_message(sock)
+        file_path = os.path.join(self.DATA_BASE_DIR, file_path)
+        self.send_message(f"get {file_path}")
+        response = self.receive_full_message()
         if response == "File not found":
             print(response)
         else:
             file_size = int(response)
             destination_path = os.path.join(os.getcwd(), os.path.basename(file_path))
-            receive_file(sock, destination_path, file_size)
-        
-    else:
-        raise CommandError(f"'{command}' is not a recognized command.")
-    print(response)
-    return response
+            self.receive_file(destination_path, file_size)
+
 
 
 def main():
-    # unique MAC address for Raspberry Pi (slave)
     selected_device = "E4:5F:01:FD:E5:FF"
-    print("Connecting to {}".format(selected_device))
-    sock = connect_to_device(selected_device)
+    print(f"Connecting to {selected_device}")
+    manager = BluetoothManager(selected_device)
+    manager.run_via_terminal()
+    print("Closing socket")
+    manager.sock.close()
 
-    try:
-        run_via_terminal(sock)
-    except BluetoothError as e:
-        print("Disconnected")
-    finally:
-        print("Closing socket")
-        sock.close()
 
 if __name__ == "__main__":
     main()
