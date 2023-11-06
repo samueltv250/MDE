@@ -357,6 +357,7 @@ class SatelliteTracker:
                 elif data.startswith("clear_schedule"):
                     with self.schedule.mutex:  # Acquire the lock before clearing
                         self.schedule.queue.clear()  # Clear all items from the queue
+                    send_message(client_sock, "Schedule cleared")
 
 
 
