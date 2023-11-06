@@ -126,19 +126,17 @@ class SatelliteTracker:
     def start_tracking(self):
         """Starts the tracking process in a new thread."""
         self.stop_signal = False
-        self.tracking_thread = threading.Thread(target=self.run)  # Assign the thread to an instance variable
+        self.tracking_thread = threading.Thread(target=self.track_and_record_satellites_concurrently)  # Assign the thread to an instance variable
         self.tracking_thread.start()
 
     def stop_tracking(self):
         """Stops the tracking process."""
-        self.stop_signal = True
         if hasattr(self, 'thread'):
             self.tracking_thread.join()  # Wait for the thread to complete its execution
-
-    def run(self):
-        """Method that runs on a separate thread."""
-        # once all meta data is set and the schedule is generated,  start tracking
         
+        self.stop_signal = True
+
+    def track_and_record_satellites_concurrently(self):
         print("Tracking started")
         while not self.stop_signal and self.schedule.qsize() > 0:
             try:
@@ -149,6 +147,14 @@ class SatelliteTracker:
                 continue
 
             _, rise_time, set_time, satellite = item
+
+            # Wait until rise time or until stop_signal is set
+            while self.local_timezone.localize(datetime.now()) < rise_time:
+                if self.stop_signal:
+                    print(f"Tracking of {satellite.name} canceled.")
+                    return  # Exit the method if stop signal is detected
+                time.sleep(0.5)  # Sleep for short intervals to check for stop_signal frequently
+
             print(f"Tracking {satellite.name} from {rise_time} to {set_time}")
             self.track_and_record_satellite(satellite, rise_time, set_time)
 
@@ -157,15 +163,10 @@ class SatelliteTracker:
 
         self.stop_signal = True
 
-
-    def concurrent_schedule(self):
-        self.schedule_thread = threading.Thread(target=self.create_schedule)  # Assign the thread to an instance variable
-        self.schedule_thread.start()
-
     def create_schedule(self):
         print(f"Creating schedule")
              # Getting the current UTC time
-        local_now = datetime.now(self.local_timezone)
+
         utc_now = pytz.utc.localize(datetime.utcnow())
         uts_plus_five_hours = utc_now + timedelta(hours=5) # 5 hours ahead of UTC
         self.start_time = utc_now.astimezone(self.local_timezone)                # Current time
@@ -184,9 +185,6 @@ class SatelliteTracker:
         print(f"Schedule created")
         return new_schedule
 
-    def getData(self):
-        # returns metadata for GUI, such as directory content, currently tracking satellit, progress
-        return
     
     def move_to_position(self, azimuth, elevation):
         """Sends a command to move to a specific azimuth and elevation."""
@@ -252,14 +250,25 @@ class SatelliteTracker:
         
 
     def track_and_record_satellite(self, satellite, rise_time, set_time):
-        # start recording on a separate thread
-        self.recording_thread = threading.Thread(target=self.record, args=(satellite, rise_time, set_time))  # Assign the thread to an instance variable
+        # Start recording on a separate thread
+        self.recording_thread = threading.Thread(target=self.record, args=(satellite, rise_time, set_time))
+        self.recording_thread.start()
+
         observer_location = scheduler.wgs84.latlon(self.latitude, self.longitude)
-        while self.stop_signal == False:
-            
+        
+   
+        previous_azimuth, previous_elevation = None, None
+
+        while self.local_timezone.localize(datetime.now()) < set_time:
             azimuth, elevation = scheduler.get_azimuth_elevation(satellite, observer_location)
-            self.move_to_position(azimuth, elevation)
-            continue
+            
+            # Check if this is the first iteration or if the difference in angle is greater than 1 degree
+            if previous_azimuth is None or abs(azimuth - previous_azimuth) > 1 or abs(elevation - previous_elevation) > 1:
+                self.move_to_position(azimuth, elevation)
+                # Update the previous azimuth and elevation
+                previous_azimuth, previous_elevation = azimuth, elevation
+            
+            time.sleep(0.1)
     
 
 
@@ -292,8 +301,12 @@ class SatelliteTracker:
                     send_message(client_sock, "Rebooting...")
                     break
                 elif data.lower().startswith("move"):
-                    self.ser.write(data.encode('utf-8'))
-                    send_message(client_sock, "moving")
+                    parts = data.split(" ")
+                    command = parts[0]
+                    azimuth = float(parts[1])
+                    elevation = float(parts[2])
+                    msg = self.move_to_position(azimuth, elevation)
+                    send_message(client_sock, msg)
            
                 elif data.startswith("calibrate"):
                     msg = self.calibrate()
@@ -318,6 +331,11 @@ class SatelliteTracker:
                     self.satellites = scheduler.load_tle_from_string(lines[0].replace("add_to_queue ", ""))
                     self.satellites_frequencies = parse_satellite_data(lines[1])
                     # start generating schedule once all meta data is set, the default time range is 5 hours
+                    if self.start_time is None:
+                        utc_now = pytz.utc.localize(datetime.utcnow())
+                        uts_plus_five_hours = utc_now + timedelta(hours=5)
+                        self.start_time = utc_now.astimezone(self.local_timezone)
+                        self.end_time = uts_plus_five_hours.astimezone(self.local_timezone)
                     new_schedule = self.create_schedule()
                     send_message(client_sock, "Schedule updated")
 
@@ -367,30 +385,5 @@ class SatelliteTracker:
                 
 
 if __name__ == "__main__":
-    # Create SatelliteTracker instance
     tracker = SatelliteTracker()
-    tracker.satellites = """CSS (TIANHE)            
-1 48274U 21035A   23250.60323094  .00028729  00000+0  32278-3 0  9997
-2 48274  41.4752  14.6926 0010484 320.3089  39.6983 15.61907922134716
-ISS (NAUKA)             
-1 49044U 21066A   23250.54606199  .00010692  00000+0  19312-3 0  9994
-2 49044  51.6415 280.5283 0005852  40.5829 119.1724 15.50278646414560
-FREGAT DEB              
-1 49271U 11037PF  23249.81523963  .00005232  00000+0  17878-1 0  9995
-2 49271  51.6235  75.4294 0907707 244.0940 106.3644 12.05002786100748
-CSS (WENTIAN)           
-1 53239U 22085A   23250.41140741  .00030442  00000+0  34184-3 0  9998
-2 53239  41.4752  15.8612 0010490 318.7503  41.2543 15.61898836 64117
-CSS (MENGTIAN)          
-1 54216U 22143A   23250.41140741  .00030442  00000+0  34184-3 0  9999
-2 54216  41.4752  15.8612 0010490 318.7503  41.2543 15.61898836134683
-TIANZHOU-5              
-1 54237U 22152A   23250.41140741  .00030442  00000+0  34184-3 0  9992
-2 54237  41.4752  15.8612 0010490 318.7503  41.2543 15.61898836134686
-SPORT                   
-1 55129U 98067UW  23250.41096130  .00205883  00000+0  74258-3 0  9992
-2 55129  51.6227 253.5459 0008158  53.6155 306.5601 15.87498635 39512"""
-
-    tracker.concurrent_schedule()
-    # Start listening for commands
-    # tracker.rec_on_exit()
+    tracker.rec_on_exit()

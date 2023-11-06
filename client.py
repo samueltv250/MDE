@@ -134,6 +134,15 @@ ISS (NAUKA): 100, 2000"""
         send_message(sock, command)
         response = receive_full_message(sock)
 
+    elif command.startswith("setViewingWindow"):
+        # bandwidth, centerfrequency, samplerate
+        send_message(sock, command)
+        response = receive_full_message(sock)
+    
+    elif command.startswith("stop_tracking"):
+        send_message(sock, command)
+        response = receive_full_message(sock)
+
     elif command.startswith("getMeta"):
         send_message(sock, command)
         response = pickle.loads(receive_full_message(sock, as_bytes=True))

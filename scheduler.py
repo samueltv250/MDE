@@ -70,32 +70,12 @@ def get_non_overlapping_non_repeating_schedule(satellites, start_time, end_time,
     return non_overlapping_non_repeating_windows
 
 def get_sequential_tracking_schedule(satellites, start_time, end_time, latitude, longitude, topos):
-    # Initiate empty list to store the results
-    tracking_schedule = []
-
-    # Define the current end time as the start time
-    current_end_time = start_time
-
-    # Iterate over satellites based on their order
-    for satellite in satellites:
-        windows = get_all_viewing_windows(satellite, current_end_time, end_time, topos, latitude, longitude)
-        
-        # Sort the windows based on the rise time
-        sorted_windows = sorted(windows, key=lambda x: x[0])
-        
-        # If there are windows available for the satellite
-        for rise_time, set_time in sorted_windows:
-            # Ensure the rise time is after the current end time
-            if rise_time > current_end_time:
-                tracking_schedule.append((satellite.name, rise_time, set_time, satellite))
-                current_end_time = set_time  # Update the current end time to avoid overlap
-                break  # Break after scheduling the first non-overlapping window
-
-    return tracking_schedule
+    empty_sats = []
+    return add_to_sequential_schedule(empty_sats,satellites, start_time, end_time, latitude, longitude, topos)
 
 def add_to_sequential_schedule(existing_schedule, satellites_to_add, start_time, end_time, latitude, longitude, topos):
     # If there's an existing schedule, pick the end time of the last satellite. Otherwise, use the start_time as the starting point.
-    current_start_time = existing_schedule[-1][2] if existing_schedule else start_time
+    current_start_time = existing_schedule[-1][2] if len(existing_schedule) > 0 else start_time
     new_schedule = []
 
     # Iterate over the satellites to add
@@ -151,37 +131,3 @@ def load_tle_from_string(tle_string):
     
     return satellites
 
-
-if __name__ == "__main__":
-    # tle_file = 'satellites.tle'
-
-    # satellites = load.tle_file(tle_file)
-
-
-    stations_url = 'http://celestrak.org/NORAD/elements/stations.txt'
-    satellites = load.tle_file(stations_url)
-    satellites_dict = {sat.name: sat for sat in satellites}
-    specific_satellite = satellites_dict.get("ISS (ZARYA)")  # Replace with the desired satellite name
-
-    latitude, longitude  = 50.21573581795237, 8.26381093515386
-    local_timezone = pytz.timezone(determine_timezone(latitude, longitude))
-    start_time = local_timezone.localize(datetime(2023, 10, 11, 0, 0))
-    end_time = local_timezone.localize(datetime(2023, 10, 19, 0, 0))
-
-    print(f"Timezone: {local_timezone}")
-
-    # Using wgs84 for defining observer's position:
-    observer_location = wgs84.latlon(latitude, longitude)
-
-    get_all_viewing_windows(specific_satellite, start_time, end_time, observer_location)
-    
-    az, el = get_azimuth_elevation(specific_satellite, observer_location)
-
-    print(f"Satellite: {specific_satellite.name}")
-    print(f"Azimuth: {az}")
-    print(f"Elevation: {el}")
-    # results = get_sequential_tracking_schedule(satellites, start_time, end_time, latitude, longitude, topos)
-    # for res in results:
-    #     print(f"Satellite: {res[0]}")
-    #     print(f"Viewing Time: From {res[1]} to {res[2]}")
-    #     print(f"TLE:\n{res[3]}\n")

@@ -18,8 +18,8 @@ const int pinStatusAzimuth = A0;    // Analog pin for Azimuth feedback
 const int pinStatusElevation = A1;  // Analog pin for Elevation feedback
 
 // Variables for position
-int currentAzimuth = 0;
-int currentElevation = 0;
+float currentAzimuth = 0;
+float currentElevation = 0;
 
 void setup() {
   Serial.begin(9600);
@@ -51,8 +51,8 @@ void loop() {
     } else {
       int separatorIndex = command.indexOf(',');
       if (separatorIndex != -1) {
-        int desiredAzimuth = command.substring(5, separatorIndex).toInt();
-        int desiredElevation = command.substring(separatorIndex + 1).toInt();
+      float desiredAzimuth = command.substring(5, separatorIndex).toFloat();
+      float desiredElevation = command.substring(separatorIndex + 1).toFloat();
         moveMount(desiredAzimuth, desiredElevation);
       }
     }
@@ -97,52 +97,51 @@ void calibrate() {
   Serial.println(elevationMax);
 }
 
-void moveMount(int desiredAzimuth, int desiredElevation) {
+void moveMount(float desiredAzimuth, float desiredElevation) {
+  const int stepDelay = 100;
   
   // For Azimuth
-  while (currentAzimuth < desiredAzimuth) {
-    digitalWrite(pinRight, HIGH);
-    delay(100); // Delay will be the amount of time it takes to move 1 degree or 1 step
-    digitalWrite(pinRight, LOW);
-    currentAzimuth = readAzimuth();  // Update position after movement
+  while (fabs(currentAzimuth - desiredAzimuth) > 1) {
+    if (currentAzimuth < desiredAzimuth) {
+      digitalWrite(pinRight, HIGH);
+      delay(stepDelay);
+      digitalWrite(pinRight, LOW);
+    } else {
+      digitalWrite(pinLeft, HIGH);
+      delay(stepDelay);
+      digitalWrite(pinLeft, LOW);
+    }
+    currentAzimuth = readAzimuth(); // Update position after movement
   }
   
-  while (currentAzimuth > desiredAzimuth) {
-    digitalWrite(pinLeft, HIGH);
-    delay(100);
-    digitalWrite(pinLeft, LOW);
-    currentAzimuth = readAzimuth();
-  }
-
   // For Elevation
-  while (currentElevation < desiredElevation) {
-    digitalWrite(pinUp, HIGH);
-    delay(100);
-    digitalWrite(pinUp, LOW);
-    currentElevation = readElevation();
-  }
-  
-  while (currentElevation > desiredElevation) {
-    digitalWrite(pinDown, HIGH);
-    delay(100);
-    digitalWrite(pinDown, LOW);
+  while (fabs(currentElevation - desiredElevation) > 0.01) {
+    if (currentElevation < desiredElevation) {
+      digitalWrite(pinUp, HIGH);
+      delay(stepDelay);
+      digitalWrite(pinUp, LOW);
+    } else {
+      digitalWrite(pinDown, HIGH);
+      delay(stepDelay);
+      digitalWrite(pinDown, LOW);
+    }
     currentElevation = readElevation();
   }
   Serial.println("Moved");
-
 }
 
-int readAzimuth() {
+// The read functions now return float values and map to a float range
+float readAzimuth() {
   int value = analogRead(pinStatusAzimuth);
-  int azimuth = map(value, azimuthMin, azimuthMax, 0, 450);
+  float azimuth = map(value, azimuthMin, azimuthMax, 0.0, 450.0);
   Serial.print("Azimuth: ");
   Serial.println(azimuth);
   return azimuth;
 }
 
-int readElevation() {
+float readElevation() {
   int value = analogRead(pinStatusElevation);
-  int elevation = map(value, elevationMin, elevationMax, 0, 180);
+  float elevation = map(value, elevationMin, elevationMax, 0.0, 180.0);
   Serial.print("Elevation: ");
   Serial.println(elevation);
   return elevation;
