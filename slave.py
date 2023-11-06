@@ -196,7 +196,7 @@ class SatelliteTracker:
         # Wait for the response
         while True:
             response = self.ser.readline().decode('utf-8').strip()
-            if response == "Moved successfully to position":
+            if response.lower() == "moved":
                 return True
             elif "Error" in response:  # Adjust this condition based on the possible error messages from the Feather
                 print("Error:", response)
