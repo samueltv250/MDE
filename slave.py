@@ -91,7 +91,7 @@ def list_files(directory):
 
 class SatelliteTracker:
     def __init__(self, serial_port=None, baudrate=9600):
-        self.gps = gps.init_gps()   # Initialize the GPS module
+        # self.gps = gps.init_gps()   # Initialize the GPS module
 
 
         if serial_port is None:
@@ -109,7 +109,8 @@ class SatelliteTracker:
         self.stop_signal = True
         self.default_frequency = 1e6
         # Placeholder for gps module
-        self.latitude, self.longitude = gps.get_coordinates(self.gps)
+        # self.latitude, self.longitude = gps.get_coordinates(self.gps)
+        self.latitude, self.longitude = 37.229572, -80.413940
 
         self.topos = Topos(latitude_degrees=self.latitude, longitude_degrees=self.longitude, elevation_m=0)
         self.local_timezone = pytz.timezone(determine_timezone(self.latitude, self.longitude))
@@ -374,15 +375,18 @@ class SatelliteTracker:
                     send_message(client_sock, serialized_data, is_binary=True)
 
                 elif data.startswith("get"):
-                    _, file_path = data.split(" ", 1)
+                    _, file_path, chuck_size = data.split(" ")
+                    chuck_size = int(chuck_size)
+                    print("size "+str(chuck_size))
+                    
                     if os.path.isfile(file_path):
                         file_size = os.path.getsize(file_path)
                         send_message(client_sock, str(file_size))
                         with open(file_path, "rb") as f:
-                            file_data = f.read(1024)
+                            file_data = f.read(chuck_size)
                             while file_data:
                                 client_sock.send(file_data)
-                                file_data = f.read(1024)
+                                file_data = f.read(chuck_size)
                     else:
                         client_sock.send("File not found".encode('utf-8'))
                     

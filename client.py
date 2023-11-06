@@ -49,11 +49,11 @@ class BluetoothManager:
         sock.close()
         return None
 
-    def receive_file(self, file_path, file_size):
+    def receive_file(self, file_path, file_size, chunck_size):
         with open(file_path, "wb") as f:
             received = 0
             while received < file_size:
-                data = self.sock.recv(1024)
+                data = self.sock.recv(chunck_size)
                 received += len(data)
                 f.write(data)
         print("File received.")
@@ -86,7 +86,9 @@ class BluetoothManager:
         elif command.startswith("getMeta"):
             self.get_meta(command)
         elif command.startswith("get"):
-            self.get_file(command)
+            self.get_file(command, 512)
+
+            
         elif command in ["clear_schedule", "start_tracking", "calibrate", "stop_tracking"]:
             self.send_and_print(command)
         elif command.startswith("move"):
@@ -158,17 +160,18 @@ class BluetoothManager:
             print(f"  Rise Time: {satellite[1]}")
             print(f"  Set Time: {satellite[2]}\n")
 
-    def get_file(self, command):
+    def get_file(self, command, chunck_size = 4096):
         file_path = command.split(" ", 1)[1]
         file_path = os.path.join(self.DATA_BASE_DIR, file_path)
-        self.send_message(f"get {file_path}")
+        message = f"get {file_path} {chunck_size}"
+        self.send_message(message)
         response = self.receive_full_message()
         if response == "File not found":
             print(response)
         else:
             file_size = int(response)
             destination_path = os.path.join(os.getcwd(), os.path.basename(file_path))
-            self.receive_file(destination_path, file_size)
+            self.receive_file(destination_path, file_size, chunck_size)
 
 
 
@@ -178,7 +181,7 @@ def main():
     manager = BluetoothManager(selected_device)
     manager.run_via_terminal()
     print("Closing socket")
-    manager.sock.close()
+    manager.sock.close() 
 
 
 if __name__ == "__main__":

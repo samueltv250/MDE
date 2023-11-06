@@ -2,11 +2,11 @@
 
 
 
-int azimuthMin = 10;    // Default value
-int azimuthMax = 629;   // Default value
-int elevationMin = 10;  // Default value
-int elevationMax = 694; // Default value
-
+int azimuthMin = 5;    // Default value
+int azimuthMax = 627;   // Default value
+int elevationMin = 7;  // Default value
+int elevationMax = 697; // Default value
+int numReadings = 10;  
 
 
 // Define pins
@@ -14,7 +14,7 @@ const int pinUp = 10;  // Adjust pins as per our setup
 const int pinDown = 11;
 const int pinLeft = 12;
 const int pinRight = 13;
-const int pinStatusAzimuth = A0;    // Analog pin for Azimuth feedback
+const int pinStatusAzimuth = A0;  // Analog pin for Azimuth feedback
 const int pinStatusElevation = A1;  // Analog pin for Elevation feedback
 
 // Variables for position
@@ -38,15 +38,11 @@ void setup() {
   }
 
 void loop() {
-    digitalWrite(pinRight, HIGH);
-    delay(100); // Delay will be the amount of time it takes to move 1 degree or 1 step
-    digitalWrite(pinRight, LOW);
-    
+
   if (Serial.available() > 0) {
 
     String command = Serial.readString();
     if (command.startsWith("calibrate")) {
-
       calibrate();
     } else {
       int separatorIndex = command.indexOf(',');
@@ -59,33 +55,55 @@ void loop() {
 
   }
 }
+float get_readings(int pin){
+  int sum = 0;
+  for (int i = 0; i < numReadings; i++) {
+    sum += analogRead(pin);
+    delay(100); // short delay to stabilize the analog reading
+  }
+  return sum / numReadings;
+}
+
 
 void calibrate() {
 
   digitalWrite(pinLeft, HIGH);
   delay(80000);
   digitalWrite(pinLeft, LOW);
-  azimuthMin = min(azimuthMin, analogRead(pinStatusAzimuth));
 
 
+  azimuthMin = get_readings(pinStatusAzimuth);
+  Serial.print("Azimuth Min: ");
+  Serial.println(azimuthMin);
 
   digitalWrite(pinRight, HIGH);
   delay(80000);
   digitalWrite(pinRight, LOW);
-  azimuthMax = max(azimuthMax, analogRead(pinStatusAzimuth));
 
+  azimuthMax = get_readings(pinStatusAzimuth);
+
+
+  Serial.print("Azimuth Max: ");
+  Serial.println(azimuthMax);
 
 
   digitalWrite(pinUp, HIGH);
   delay(80000);
   digitalWrite(pinUp, LOW);
-  elevationMax = max(elevationMax, analogRead(pinStatusElevation));
 
+  elevationMax = get_readings(pinStatusElevation);
+
+  Serial.print("Elevation Max: ");
+  Serial.println(elevationMax);
 
   digitalWrite(pinDown, HIGH);
   delay(80000);
   digitalWrite(pinDown, LOW);
-  elevationMin = min(elevationMin, analogRead(pinStatusElevation));
+  
+  elevationMin = get_readings(pinStatusElevation);
+  Serial.print("Elevation Min: ");
+  Serial.println(elevationMin);
+
 
   Serial.print("Azimuth Min: ");
   Serial.print(azimuthMin);
@@ -134,15 +152,13 @@ void moveMount(float desiredAzimuth, float desiredElevation) {
 float readAzimuth() {
   int value = analogRead(pinStatusAzimuth);
   float azimuth = map(value, azimuthMin, azimuthMax, 0.0, 450.0);
-  Serial.print("Azimuth: ");
-  Serial.println(azimuth);
+
   return azimuth;
 }
 
 float readElevation() {
   int value = analogRead(pinStatusElevation);
   float elevation = map(value, elevationMin, elevationMax, 0.0, 180.0);
-  Serial.print("Elevation: ");
-  Serial.println(elevation);
+
   return elevation;
 }
