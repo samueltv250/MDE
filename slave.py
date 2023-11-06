@@ -354,6 +354,11 @@ class SatelliteTracker:
                     new_schedule = self.create_schedule()
                     send_message(client_sock, "Schedule updated")
 
+                elif data.startswith("clear_schedule"):
+                    with self.schedule.mutex:  # Acquire the lock before clearing
+                        self.schedule.queue.clear()  # Clear all items from the queue
+
+
 
                 elif data.startswith("getMeta"):
                     directory_files = '\n'.join(list_files(DATA_BASE_DIR))

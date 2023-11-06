@@ -81,70 +81,32 @@ class BluetoothManager:
         response = None
         if command.startswith("add_to_queue"):
             self.add_to_queue(command)
-
-        elif command.startswith("start_tracking"):
-            self.start_tracking(command)
-
         elif command.startswith("calibrate_date_time"):
             self.calibrate_date_time(command)
-
-        elif command.startswith("calibrate"):
-            self.calibrate(command)
-
-        elif command.startswith("move"):
-            self.move(command)
-
-        elif command.startswith("setViewingWindow"):
-            self.set_viewing_window(command)
-
-        elif command.startswith("stop_tracking"):
-            self.stop_tracking(command)
-
         elif command.startswith("getMeta"):
             self.get_meta(command)
-
         elif command.startswith("get"):
             self.get_file(command)
-
+        elif command in ["clear_schedule", "start_tracking", "calibrate", "stop_tracking"]:
+            self.send_and_print(command)
+        elif command.startswith("move"):
+            self.send_and_print(command)
+        elif command.startswith("setViewingWindow"):
+            self.send_and_print(command)
         else:
             raise CommandError(f"'{command}' is not a recognized command.")
 
     def add_to_queue(self, command):
-        # Test
-        command = command + " " + """
-CSS (TIANHE)            
-1 48274U 21035A   23250.60323094  .00028729  00000+0  32278-3 0  9997
-2 48274  41.4752  14.6926 0010484 320.3089  39.6983 15.61907922134716
-ISS (NAUKA)             
-1 49044U 21066A   23250.54606199  .00010692  00000+0  19312-3 0  9994
-2 49044  51.6415 280.5283 0005852  40.5829 119.1724 15.50278646414560
-FREGAT DEB              
-1 49271U 11037PF  23249.81523963  .00005232  00000+0  17878-1 0  9995
-2 49271  51.6235  75.4294 0907707 244.0940 106.3644 12.05002786100748
-CSS (WENTIAN)           
-1 53239U 22085A   23250.41140741  .00030442  00000+0  34184-3 0  9998
-2 53239  41.4752  15.8612 0010490 318.7503  41.2543 15.61898836 64117
-CSS (MENGTIAN)          
-1 54216U 22143A   23250.41140741  .00030442  00000+0  34184-3 0  9999
-2 54216  41.4752  15.8612 0010490 318.7503  41.2543 15.61898836134683
-TIANZHOU-5              
-1 54237U 22152A   23250.41140741  .00030442  00000+0  34184-3 0  9992
-2 54237  41.4752  15.8612 0010490 318.7503  41.2543 15.61898836134686
-SPORT                   
-1 55129U 98067UW  23250.41096130  .00205883  00000+0  74258-3 0  9992
-2 55129  51.6227 253.5459 0008158  53.6155 306.5601 15.87498635 39512
-
-CSS (TIANHE): 100, 2000
-ISS (NAUKA): 100, 2000"""
-
-        self.send_message(command)
+        # Open the file and read the contents
+        with open('satellites.tle', 'r') as file:
+            satellite_data = file.read()
+        # Append the file contents to the command
+        full_command = command + " \n" + satellite_data
+        # Send the full command with the satellite data
+        self.send_message(full_command)
         response = self.receive_full_message()
         print(response)
 
-    def start_tracking(self, command):
-        self.send_message(command)
-        response = self.receive_full_message()
-        print(response)
 
     def calibrate_date_time(self, command):
         self.send_message(command)
@@ -163,22 +125,7 @@ ISS (NAUKA): 100, 2000"""
         response = self.receive_full_message()
         print(response)
 
-    def calibrate(self, command):
-        self.send_message(command)
-        response = self.receive_full_message()
-        print(response)
-
-    def move(self, command):
-        self.send_message(command)
-        response = self.receive_full_message()
-        print(response)
-
-    def set_viewing_window(self, command):
-        self.send_message(command)
-        response = self.receive_full_message()
-        print(response)
-
-    def stop_tracking(self, command):
+    def send_and_print(self, command):
         self.send_message(command)
         response = self.receive_full_message()
         print(response)
