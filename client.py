@@ -110,7 +110,7 @@ class BluetoothManager:
             raise CommandError(f"'{command}' is not a recognized command.")
 
     def add_to_queue(self, command):
-        # Testa
+        # Test
         command = command + " " + """
 CSS (TIANHE)            
 1 48274U 21035A   23250.60323094  .00028729  00000+0  32278-3 0  9997

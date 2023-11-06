@@ -177,7 +177,7 @@ class SatelliteTracker:
         while not self.schedule.empty():
             old_schedule.append(self.schedule.get())
         # self.schedule = scheduler.get_sequential_tracking_schedule(self.satellites, self.start_time, self.end_time, self.latitude, self.longitude, self.topos)
-        new_schedule = scheduler.add_to_sequential_schedule(old_schedule, self.satellites, self.start_time, self.end_time, self.latitude, self.longitude, self.topos)
+        new_schedule = scheduler.add_to_sequential_schedule(old_schedule, self.satellites, self.start_time, self.end_time, self.topos)
 
         for item in new_schedule:
             self.schedule.put(item)

@@ -45,11 +45,11 @@ def get_all_viewing_windows(satellite, start_time, end_time, observer_location):
 
 
 
-def get_non_overlapping_non_repeating_schedule(satellites, start_time, end_time, latitude, longitude, topos):
+def get_non_overlapping_non_repeating_schedule(satellites, start_time, end_time, topos):
     # Fetch all viewing windows for all satellites
     all_windows = []
     for satellite in satellites:
-        for window in get_all_viewing_windows(satellite, start_time, end_time, topos, latitude, longitude):
+        for window in get_all_viewing_windows(satellite, start_time, end_time, topos):
             all_windows.append((satellite.name, window[0], window[1], satellite))
 
     # Sort the windows by their start time
@@ -69,18 +69,18 @@ def get_non_overlapping_non_repeating_schedule(satellites, start_time, end_time,
 
     return non_overlapping_non_repeating_windows
 
-def get_sequential_tracking_schedule(satellites, start_time, end_time, latitude, longitude, topos):
+def get_sequential_tracking_schedule(satellites, start_time, end_time, topos):
     empty_sats = []
-    return add_to_sequential_schedule(empty_sats,satellites, start_time, end_time, latitude, longitude, topos)
+    return add_to_sequential_schedule(empty_sats,satellites, start_time, end_time, topos)
 
-def add_to_sequential_schedule(existing_schedule, satellites_to_add, start_time, end_time, latitude, longitude, topos):
+def add_to_sequential_schedule(existing_schedule, satellites_to_add, start_time, end_time, topos):
     # If there's an existing schedule, pick the end time of the last satellite. Otherwise, use the start_time as the starting point.
     current_start_time = existing_schedule[-1][2] if len(existing_schedule) > 0 else start_time
     new_schedule = []
 
     # Iterate over the satellites to add
     for satellite in satellites_to_add:
-        windows = get_all_viewing_windows(satellite, current_start_time, end_time, topos, latitude, longitude)
+        windows = get_all_viewing_windows(satellite, current_start_time, end_time, topos)
         
         # Sort the windows based on the rise time
         sorted_windows = sorted(windows, key=lambda x: x[0])
