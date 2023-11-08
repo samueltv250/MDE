@@ -1,21 +1,20 @@
 import os
-from bluetooth import BluetoothSocket, RFCOMM, BluetoothError
 import time
 import pickle
 import datetime
-
+import socket
 
 class CommandError(Exception):
     def __init__(self, message="Invalid command."):
         super().__init__(message)
 
 
-class BluetoothManager:
+class WiFiManager:
     DATA_BASE_DIR = "/home/pi/Desktop/data_base"
 
     def __init__(self, device_addr):
         self.device_addr = device_addr
-        self.sock = self.connect_to_device()
+        self.sock = self.connect_to_device(device_addr)
 
     def send_message(self, message, is_binary=False):
         data = message if is_binary else message.encode('utf-8')
@@ -36,18 +35,25 @@ class BluetoothManager:
             bytes_left -= len(chunk)
         return b''.join(received_data) if as_bytes else b''.join(received_data).decode('utf-8')
 
-    def connect_to_device(self):
-        sock = BluetoothSocket(RFCOMM)
-        for port in range(1, 31):
+    def connect_to_device(self, ip_address, port=12345):
+        
+        while True:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(10)  # Set the timeout for the connection attempt to 10 seconds
+
             try:
                 print(f"Attempting to connect on RFCOMM channel {port}")
-                sock.connect((self.device_addr, port))
+                sock.connect((ip_address, port))
+                sock.settimeout(None)  # Reset the timeout to None after a successful connection
                 return sock
-            except OSError:
-                pass
-        print("Failed to connect to any port.")
-        sock.close()
-        return None
+            except socket.timeout:
+                print("Connection attempt timed out after 10 seconds, retrying...")
+            except Exception as e:
+                print(f"Failed to connect due to an error: {e}")
+                time.sleep(1)  # Wait a bit before retrying to avoid spamming connection attempts
+
+                
+
 
     def receive_file(self, file_path, file_size, chunck_size):
         with open(file_path, "wb") as f:
@@ -86,8 +92,10 @@ class BluetoothManager:
         elif command.startswith("getMeta"):
             self.get_meta(command)
         elif command.startswith("get"):
-            self.get_file(command, 512)
-
+            start_time = time.time()
+            self.get_file(command, 104857600)
+            end_time = time.time()
+            print(f"Time elapsed: {end_time - start_time} seconds")
             
         elif command in ["clear_schedule", "start_tracking", "calibrate", "stop_tracking"]:
             self.send_and_print(command)
@@ -176,12 +184,14 @@ class BluetoothManager:
 
 
 def main():
-    selected_device = "E4:5F:01:FD:E5:FF"
-    print(f"Connecting to {selected_device}")
-    manager = BluetoothManager(selected_device)
+    server_ip = "192.168.4.1"  # The IP address of the Raspberry Pi when it's a hotspot
+    print(f"Connecting to {server_ip}")
+    manager = WiFiManager(server_ip)
     manager.run_via_terminal()
     print("Closing socket")
-    manager.sock.close() 
+    manager.sock.close()
+
+
 
 
 if __name__ == "__main__":

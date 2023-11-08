@@ -1,9 +1,8 @@
 import os
-import bluetooth
+import socket
 import subprocess
 import threading
 import time
-from bluetooth import BluetoothSocket, RFCOMM
 import scheduler
 from datetime import datetime, timedelta
 from scheduler import Topos, pytz, determine_timezone
@@ -274,141 +273,143 @@ class SatelliteTracker:
     
 
 
-    def rec_on_exit(self):
-        server_sock = BluetoothSocket(RFCOMM)
-        server_sock.bind(("", bluetooth.PORT_ANY))
+    def rec_on_exit(self, ip_address='0.0.0.0', port=12345):
+        server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Set the SO_REUSEADDR option
+        server_sock.bind((ip_address, port))
         server_sock.listen(1)
+        while True:
+            print(f"Waiting for connection on IP {ip_address} port {port}")
+            client_sock = None
+            try:
+                client_sock, client_info = server_sock.accept()
+                print("Accepted connection from", client_info)
+                while True:
+                    data = receive_full_message(client_sock)
+                    if not data:
+                        break
 
-        # before connection is established
-        print("Waiting for connection on RFCOMM channel %d" % server_sock.getsockname()[1])
+                    print("Received command: %s" % data)
 
-        client_sock, client_info = server_sock.accept()
-        print("Accepted connection from", client_info)
+                    if data.startswith("shutdown"):
+                        subprocess.run(["sudo", "shutdown", "-h", "now"])
+                        send_message(client_sock, "Shutting down...")
+                        server_sock.close()
+                        return
 
-        try:
-            while True:
-                data = receive_full_message(client_sock)
-                if not data:
-                    break
+                    elif data.startswith("reboot"):
+                        subprocess.run(["sudo", "reboot"])
+                        send_message(client_sock, "Rebooting...")
+                        server_sock.close()
+                        return
+                    elif data.lower().startswith("move"):
+                        parts = data.split(" ")
+                        command = parts[0]
+                        azimuth = float(parts[1])
+                        elevation = float(parts[2])
+                        msg = self.move_to_position(azimuth, elevation)
+                        send_message(client_sock, msg)
+                        
+                    elif data.startswith("calibrate_date_time"):
+                        send_message(client_sock, "Waiting on date time info")
+                        datetime_info = pickle.loads(receive_full_message(client_sock, as_bytes=True))
+                        received_datetime = datetime.strptime(datetime_info['datetime'], "%Y-%m-%d %H:%M:%S")
 
-                print("Received command: %s" % data)
+                        # Format the datetime for the 'date -s' command
+                        formatted_datetime = received_datetime.strftime("%Y-%m-%d %H:%M:%S")
+                        # Set the system date and time
+                        subprocess.call(['sudo', 'date', '-s', formatted_datetime])
 
-                if data.startswith("shutdown"):
-                    subprocess.run(["sudo", "shutdown", "-h", "now"])
-                    send_message(client_sock, "Shutting down...")
-                    break
+                        # Set the time zone
+                        time_zone = datetime_info['timezone']
+                        subprocess.call(['sudo', 'timedatectl', 'set-timezone', time_zone])
+                        send_message(client_sock, "Finished setting datetime")
+                    elif data.startswith("calibrate"):
+                        msg = self.calibrate()
+                        send_message(client_sock, msg)
 
-                elif data.startswith("reboot"):
-                    subprocess.run(["sudo", "reboot"])
-                    send_message(client_sock, "Rebooting...")
-                    break
-                elif data.lower().startswith("move"):
-                    parts = data.split(" ")
-                    command = parts[0]
-                    azimuth = float(parts[1])
-                    elevation = float(parts[2])
-                    msg = self.move_to_position(azimuth, elevation)
-                    send_message(client_sock, msg)
-                    
-                elif data.startswith("calibrate_date_time"):
-                    send_message(client_sock, "Waiting on date time info")
-                    datetime_info = pickle.loads(receive_full_message(client_sock, as_bytes=True))
-                    received_datetime = datetime.strptime(datetime_info['datetime'], "%Y-%m-%d %H:%M:%S")
+                    # setViewingWindow
+                    elif data.startswith("setViewingWindow"):
+                        parts = data.split(" ")
+                        command = parts[0]
+                        start_time = " ".join(parts[1:3])  # Joins the second and third parts
+                        end_time = " ".join(parts[3:5])  # Joins the fourth and fifth parts
 
-                    # Format the datetime for the 'date -s' command
-                    formatted_datetime = received_datetime.strftime("%Y-%m-%d %H:%M:%S")
-                    # Set the system date and time
-                    subprocess.call(['sudo', 'date', '-s', formatted_datetime])
+                        # time are entered in the local timezone, must make timezone aware
+                        start_time = self.local_timezone.localize(datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S"))
+                        end_time = self.local_timezone.localize(datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S"))
+                        self.start_time = start_time
+                        self.end_time = end_time
 
-                    # Set the time zone
-                    time_zone = datetime_info['timezone']
-                    subprocess.call(['sudo', 'timedatectl', 'set-timezone', time_zone])
-                    send_message(client_sock, "Finished setting datetime")
-                elif data.startswith("calibrate"):
-                    msg = self.calibrate()
-                    send_message(client_sock, msg)
+                    elif data.startswith("add_to_queue "):
+                        lines = data.split('\n\n')
 
-                # setViewingWindow
-                elif data.startswith("setViewingWindow"):
-                    parts = data.split(" ")
-                    command = parts[0]
-                    start_time = " ".join(parts[1:3])  # Joins the second and third parts
-                    end_time = " ".join(parts[3:5])  # Joins the fourth and fifth parts
+                        self.satellites = scheduler.load_tle_from_string(lines[0].replace("add_to_queue ", ""))
+                        self.satellites_frequencies = parse_satellite_data(lines[1])
+                        # start generating schedule once all meta data is set, the default time range is 5 hours
+                        if self.start_time is None:
+                            utc_now = pytz.utc.localize(datetime.utcnow())
+                            uts_plus_five_hours = utc_now + timedelta(hours=5)
+                            self.start_time = utc_now.astimezone(self.local_timezone)
+                            self.end_time = uts_plus_five_hours.astimezone(self.local_timezone)
+                        new_schedule = self.create_schedule()
+                        send_message(client_sock, "Schedule updated")
 
-                    # time are entered in the local timezone, must make timezone aware
-                    start_time = self.local_timezone.localize(datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S"))
-                    end_time = self.local_timezone.localize(datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S"))
-                    self.start_time = start_time
-                    self.end_time = end_time
-
-                elif data.startswith("add_to_queue "):
-                    lines = data.split('\n\n')
-
-                    self.satellites = scheduler.load_tle_from_string(lines[0].replace("add_to_queue ", ""))
-                    self.satellites_frequencies = parse_satellite_data(lines[1])
-                    # start generating schedule once all meta data is set, the default time range is 5 hours
-                    if self.start_time is None:
-                        utc_now = pytz.utc.localize(datetime.utcnow())
-                        uts_plus_five_hours = utc_now + timedelta(hours=5)
-                        self.start_time = utc_now.astimezone(self.local_timezone)
-                        self.end_time = uts_plus_five_hours.astimezone(self.local_timezone)
-                    new_schedule = self.create_schedule()
-                    send_message(client_sock, "Schedule updated")
-
-                elif data.startswith("clear_schedule"):
-                    with self.schedule.mutex:  # Acquire the lock before clearing
-                        self.schedule.queue.clear()  # Clear all items from the queue
-                    send_message(client_sock, "Schedule cleared")
+                    elif data.startswith("clear_schedule"):
+                        with self.schedule.mutex:  # Acquire the lock before clearing
+                            self.schedule.queue.clear()  # Clear all items from the queue
+                        send_message(client_sock, "Schedule cleared")
 
 
 
-                elif data.startswith("getMeta"):
-                    directory_files = '\n'.join(list_files(DATA_BASE_DIR))
+                    elif data.startswith("getMeta"):
+                        directory_files = '\n'.join(list_files(DATA_BASE_DIR))
 
-                    # Exclude the last column from each row in self.schedule and self.already_processed_satellites
-                    modified_schedule = [row[:-1] for row in list(self.schedule.queue)]
-                    modified_processed_satellites = [row[:-1] for row in self.already_processed_satellites]
+                        # Exclude the last column from each row in self.schedule and self.already_processed_satellites
+                        modified_schedule = [row[:-1] for row in list(self.schedule.queue)]
+                        modified_processed_satellites = [row[:-1] for row in self.already_processed_satellites]
 
-                    meta_data = {"current_time": pytz.utc.localize(datetime.utcnow()), "data": directory_files, "schedule": modified_schedule, "processed_schedule": modified_processed_satellites, "tracking": not self.stop_signal}
+                        meta_data = {"current_time": pytz.utc.localize(datetime.utcnow()), "data": directory_files, "schedule": modified_schedule, "processed_schedule": modified_processed_satellites, "tracking": not self.stop_signal}
 
-                    serialized_data = pickle.dumps(meta_data)
-                    send_message(client_sock, serialized_data, is_binary=True)
+                        serialized_data = pickle.dumps(meta_data)
+                        send_message(client_sock, serialized_data, is_binary=True)
 
-                elif data.startswith("get"):
-                    _, file_path, chuck_size = data.split(" ")
-                    chuck_size = int(chuck_size)
-                    print("size "+str(chuck_size))
-                    
-                    if os.path.isfile(file_path):
-                        file_size = os.path.getsize(file_path)
-                        send_message(client_sock, str(file_size))
-                        with open(file_path, "rb") as f:
-                            file_data = f.read(chuck_size)
-                            while file_data:
-                                client_sock.send(file_data)
+                    elif data.startswith("get"):
+                        _, file_path, chuck_size = data.split(" ")
+                        chuck_size = int(chuck_size)
+                        print("size "+str(chuck_size))
+                        
+                        if os.path.isfile(file_path):
+                            file_size = os.path.getsize(file_path)
+                            send_message(client_sock, str(file_size))
+                            with open(file_path, "rb") as f:
                                 file_data = f.read(chuck_size)
+                                while file_data:
+                                    client_sock.send(file_data)
+                                    file_data = f.read(chuck_size)
+                        else:
+                            client_sock.send("File not found".encode('utf-8'))
+                        
+                    elif data.startswith("start_tracking"):
+                        self.start_tracking()
+                        send_message(client_sock, "Tracking started.")
+
+                    elif data.startswith("stop_tracking"):
+                        self.stop_tracking()
+                        send_message(client_sock, "Tracking stopped.")
+        
                     else:
-                        client_sock.send("File not found".encode('utf-8'))
-                    
-                elif data.startswith("start_tracking"):
-                    self.start_tracking()
-                    send_message(client_sock, "Tracking started.")
+                        print("Queue is empty!")
 
-                elif data.startswith("stop_tracking"):
-                    self.stop_tracking()
-                    send_message(client_sock, "Tracking stopped.")
-       
-                else:
-                    print("Queue is empty!")
-
-        except Exception as e:
-            print("An error occurred:", e)
-        finally:
-            print("Closing sockets")
-            client_sock.close()
-            server_sock.close()
-            self.rec_on_exit()
-                
+            except socket.error as e:
+                print(f"Socket error: {e}")
+                time.sleep(1)
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+            finally:
+                if client_sock:
+                    client_sock.close()
+     
 
 if __name__ == "__main__":
     tracker = SatelliteTracker()
