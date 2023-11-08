@@ -12,6 +12,7 @@ from rtlsdr import RtlSdr
 import serial
 import gps
 
+
 DATA_BASE_DIR = "/home/pi/Desktop/data_base"
 
 def find_arduino_port():
@@ -99,7 +100,7 @@ class SatelliteTracker:
             if serial_port is None:
                 print("Unable to find Arduino port.")
         
-        self.schedule = queue.Queue()
+        self.schedule = queue.queue()
 
         self.satellites = []
         self.satellites_frequencies = {}
@@ -116,6 +117,9 @@ class SatelliteTracker:
 
         self.start_time = None
         self.end_time = None
+
+        self.samples_queue = queue()
+        self.recording = True
 
         print("Current time: ", self.start_time)
         print("Timezone: ", self.local_timezone)
@@ -144,7 +148,7 @@ class SatelliteTracker:
                 # Get next item, but don't wait forever. Timeout after 5 seconds, for example.
                 item = self.schedule.get(timeout=5)
             except queue.Empty:
-                # Queue is empty and no item was retrieved in the given timeout.
+                # queue is empty and no item was retrieved in the given timeout.
                 continue
 
             _, rise_time, set_time, satellite = item
@@ -211,44 +215,60 @@ class SatelliteTracker:
             response = self.ser.readline().decode('utf-8').strip()
             return response
             
+     
     def record(self, satellite, rise_time, set_time):
-        # Calculate recording time per frequency based on rise and set time
         total_time = (set_time - rise_time).seconds
-
-        time_per_frequency = total_time
-        frequencies = self.satellites_frequencies[satellite.name]
-        if len(frequencies) == 0:
+        frequencies = self.satellites_frequencies.get(satellite.name, [self.default_frequency])
+        
+        if not frequencies:
             print(f"No frequencies for satellite {satellite.name}")
-            print(f"Defaulting to 1MHz")
+            print("Defaulting to 1MHz")
             freq = self.default_frequency
         else:
-            freq = frequencies[0]
-            frequencies.pop(0)
-
-        # Initialize RTL-SDR device
-        sdr = RtlSdr()
-        sdr.sample_rate = 2.0486e6
-        sdr.center_freq = freq  # Set center frequency
-        sdr.gain = 0  # Set gain (could be modified)
-
-        # Calculate number of samples based on time_per_frequency
-        number_of_samples = int(sdr.sample_rate * time_per_frequency)
-
-        # Record samples
-        samples = sdr.read_samples(number_of_samples)
-
-        # Close RTL-SDR device
-        sdr.close()
-
-        # Save samples to a file
-        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-        filename = f"{satellite.name}_{freq}Hz_{timestamp}.pkl"
-        file_path = os.path.join(DATA_BASE_DIR, filename)
-        with open(file_path, 'wb') as f:
-            pickle.dump(samples, f)
-
-        print(f"Recorded for satellite {satellite.name} at frequency {freq}Hz")
+            freq = frequencies.pop(0)  # Use the first frequency and remove it from the list
         
+        # Assuming the highest frequency component is the frequency of the satellite signal
+        # Set sample rate to double the frequency for Nyquist rate
+        sample_rate = freq * 2
+        
+        sdr = RtlSdr()
+        sdr.sample_rate = sample_rate
+        sdr.center_freq = freq
+        sdr.gain = 0
+
+        bytes_per_sample = 8  # Each sample is 8 bytes (complex float)
+        max_bytes_per_file = 50 * 1024 * 1024
+        samples_per_chunk = max_bytes_per_file // bytes_per_sample
+        total_samples = int(sample_rate * total_time)
+        
+        def producer():
+            for _ in range(0, total_samples, samples_per_chunk):
+                self.samples_queue.put(sdr.read_samples(samples_per_chunk))
+        
+        def consumer():
+            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            filename = f"{satellite.name}_{freq}Hz_{timestamp}.pkl"
+            file_path = os.path.join(DATA_BASE_DIR, filename)
+            
+            with open(file_path, 'wb') as f:
+                while self.recording or not self.samples_queue.empty():
+                    samples = self.samples_queue.get()
+                    pickle.dump(samples, f)
+                    self.samples_queue.task_done()
+        
+        producer_thread = threading.Thread(target=producer)
+        consumer_thread = threading.Thread(target=consumer)
+        
+        producer_thread.start()
+        consumer_thread.start()
+        
+        producer_thread.join()  # Wait for producer to finish.
+        self.recording = False  # Signal consumer that recording is done.
+        consumer_thread.join()  # Wait for consumer to finish writing all chunks.
+        
+        sdr.close()
+        print(f"Recorded for satellite {satellite.name} at frequency {freq}Hz")
+
 
     def track_and_record_satellite(self, satellite, rise_time, set_time):
         # Start recording on a separate thread
@@ -399,7 +419,7 @@ class SatelliteTracker:
                         send_message(client_sock, "Tracking stopped.")
         
                     else:
-                        print("Queue is empty!")
+                        print("queue is empty!")
 
             except socket.error as e:
                 print(f"Socket error: {e}")
