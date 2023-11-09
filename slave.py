@@ -100,7 +100,7 @@ class SatelliteTracker:
             if serial_port is None:
                 print("Unable to find Arduino port.")
         
-        self.schedule = queue.queue()
+        self.schedule = queue.Queue()
 
         self.satellites = []
         self.satellites_frequencies = {}
@@ -118,7 +118,7 @@ class SatelliteTracker:
         self.start_time = None
         self.end_time = None
 
-        self.samples_queue = queue()
+        self.samples_queue = [queue.Queue(), queue.Queue()]
         self.recording = True
 
         print("Current time: ", self.start_time)
@@ -296,6 +296,12 @@ class SatelliteTracker:
     def rec_on_exit(self, ip_address='0.0.0.0', port=12345):
         server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Set the SO_REUSEADDR option
+        
+        server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 32 * 1024)
+        server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 32 * 1024)
+
+        
+        
         server_sock.bind((ip_address, port))
         server_sock.listen(1)
         while True:

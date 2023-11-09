@@ -40,6 +40,8 @@ class WiFiManager:
         while True:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(10)  # Set the timeout for the connection attempt to 10 seconds
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 32 * 1024)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 32 * 1024)
 
             try:
                 print(f"Attempting to connect on RFCOMM channel {port}")
