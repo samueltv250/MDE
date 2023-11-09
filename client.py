@@ -10,7 +10,7 @@ class CommandError(Exception):
 
 
 class WiFiManager:
-    DATA_BASE_DIR = "/home/pi/Desktop/data_base"
+    DATA_BASE_DIR = "/home/dietpi/Desktop/MDE/data_base"
 
     def __init__(self, device_addr):
         self.device_addr = device_addr
@@ -94,12 +94,11 @@ class WiFiManager:
         elif command.startswith("getMeta"):
             self.get_meta(command)
         elif command.startswith("get"):
-            start_time = time.time()
+            # start_time = time.time()
             self.get_file(command, 104857600)
-            end_time = time.time()
-            print(f"Time elapsed: {end_time - start_time} seconds")
+
             
-        elif command in ["clear_schedule", "start_tracking", "calibrate", "stop_tracking"]:
+        elif command in ["clear_schedule", "start_tracking", "calibrate", "stop_tracking", "device_get"]:
             self.send_and_print(command)
         elif command.startswith("move"):
             self.send_and_print(command)

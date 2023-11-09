@@ -11,9 +11,12 @@ import queue
 from rtlsdr import RtlSdr
 import serial
 import gps
+import numpy as np
+import SoapySDR as sdr
 
 
-DATA_BASE_DIR = "/home/pi/Desktop/data_base"
+DATA_BASE_DIR = "/home/dietpi/Desktop/MDE/data_base"
+CF32 = sdr.SOAPY_SDR_CF32  # Data format for SoapySDR: complex float 32 bits
 
 def find_arduino_port():
     try:
@@ -215,59 +218,90 @@ class SatelliteTracker:
             response = self.ser.readline().decode('utf-8').strip()
             return response
             
-     
+
     def record(self, satellite, rise_time, set_time):
         total_time = (set_time - rise_time).seconds
         frequencies = self.satellites_frequencies.get(satellite.name, [self.default_frequency])
         
-        if not frequencies:
-            print(f"No frequencies for satellite {satellite.name}")
-            print("Defaulting to 1MHz")
-            freq = self.default_frequency
-        else:
-            freq = frequencies.pop(0)  # Use the first frequency and remove it from the list
+        if len(frequencies) < 2:
+            print(f"Insufficient frequencies for satellite {satellite.name}, need at least 2")
+            return
         
-        # Assuming the highest frequency component is the frequency of the satellite signal
-        # Set sample rate to double the frequency for Nyquist rate
-        sample_rate = freq * 2
+        freq1, freq2 = frequencies[:2]  # Get the first two frequencies for recording
         
-        sdr = RtlSdr()
-        sdr.sample_rate = sample_rate
-        sdr.center_freq = freq
-        sdr.gain = 0
+        sample_rate1 = freq1 * 2
+        sample_rate2 = freq2 * 2
 
-        bytes_per_sample = 8  # Each sample is 8 bytes (complex float)
+        # Create a SoapySDR device instance for the RSPduo in Dual Tuner mode
+        sdr_device = sdr.Device({"driver": "sdrplay", "serial": "230102CE34"})
+        # Initialize both tuners
+        sdr_device.setSampleRate(sdr.SOAPY_SDR_RX, 0, sample_rate1)
+        sdr_device.setFrequency(sdr.SOAPY_SDR_RX, 0, freq1)
+        sdr_device.setGain(sdr.SOAPY_SDR_RX, 0, 0)
+
+        sdr_device.setSampleRate(sdr.SOAPY_SDR_RX, 1, sample_rate2)
+        sdr_device.setFrequency(sdr.SOAPY_SDR_RX, 1, freq2)
+        sdr_device.setGain(sdr.SOAPY_SDR_RX, 1, 0)
+
+        # Prepare streaming for both tuners
+        stream0 = sdr_device.setupStream(sdr.SOAPY_SDR_RX, CF32, [0])
+        stream1 = sdr_device.setupStream(sdr.SOAPY_SDR_RX, CF32, [1])
+        sdr_device.activateStream(stream0)
+        sdr_device.activateStream(stream1)
+
+        # Queue for sample chunks for both streams
+        samples_queue1 = queue.Queue()
+        samples_queue2 = queue.Queue()
+
+        # Calculate samples and chunk sizes
+        bytes_per_sample = 8
         max_bytes_per_file = 50 * 1024 * 1024
         samples_per_chunk = max_bytes_per_file // bytes_per_sample
-        total_samples = int(sample_rate * total_time)
-        
-        def producer():
+        total_samples = int(max(sample_rate1, sample_rate2) * total_time)
+        self.recording = True
+
+        # Define producer and consumer functions for both tuners
+        def producer(stream, samples_queue, sample_rate):
             for _ in range(0, total_samples, samples_per_chunk):
-                self.samples_queue.put(sdr.read_samples(samples_per_chunk))
+                buff = np.empty(samples_per_chunk, np.complex64)
+                sr = sdr_device.readStream(stream, [buff], len(buff))
+                if sr.ret > 0:
+                    samples_queue.put(buff[:sr.ret])
         
-        def consumer():
+        def consumer(samples_queue, freq):
             timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
             filename = f"{satellite.name}_{freq}Hz_{timestamp}.pkl"
             file_path = os.path.join(DATA_BASE_DIR, filename)
             
             with open(file_path, 'wb') as f:
-                while self.recording or not self.samples_queue.empty():
-                    samples = self.samples_queue.get()
+                while self.recording or not samples_queue.empty():
+                    samples = samples_queue.get()
                     pickle.dump(samples, f)
-                    self.samples_queue.task_done()
+                    samples_queue.task_done()
+
+        # Start producer and consumer threads for both tuners
+        producer_thread1 = threading.Thread(target=producer, args=(stream0, samples_queue1, sample_rate1))
+        producer_thread2 = threading.Thread(target=producer, args=(stream1, samples_queue2, sample_rate2))
+        consumer_thread1 = threading.Thread(target=consumer, args=(samples_queue1, freq1))
+        consumer_thread2 = threading.Thread(target=consumer, args=(samples_queue2, freq2))
         
-        producer_thread = threading.Thread(target=producer)
-        consumer_thread = threading.Thread(target=consumer)
+        producer_thread1.start()
+        producer_thread2.start()
+        consumer_thread1.start()
+        consumer_thread2.start()
         
-        producer_thread.start()
-        consumer_thread.start()
+        # Wait for producer threads to finish
+        producer_thread1.join()
+        producer_thread2.join()
         
-        producer_thread.join()  # Wait for producer to finish.
-        self.recording = False  # Signal consumer that recording is done.
-        consumer_thread.join()  # Wait for consumer to finish writing all chunks.
+        self.recording = False  # Signal consumer threads that recording is done
         
-        sdr.close()
-        print(f"Recorded for satellite {satellite.name} at frequency {freq}Hz")
+        # Wait for consumer threads to finish writing all chunks
+        consumer_thread1.join()
+        consumer_thread2.join()
+        
+        # Close the SoapySDR streams and device
+        sdr_device.deactivateStream(stream0)
 
 
     def track_and_record_satellite(self, satellite, rise_time, set_time):
@@ -419,6 +453,15 @@ class SatelliteTracker:
                     elif data.startswith("start_tracking"):
                         self.start_tracking()
                         send_message(client_sock, "Tracking started.")
+
+                    elif data.startswith("device_get"):
+                        devices = sdr.Device.enumerate()
+                        final_response = ""
+                        for i, dev in enumerate(devices):
+                            print(f"Device {i}: {dev}")
+                            final_response += f"Device {i}: {dev}\n"
+                        
+                        send_message(client_sock, final_response)
 
                     elif data.startswith("stop_tracking"):
                         self.stop_tracking()
