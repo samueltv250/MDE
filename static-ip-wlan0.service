@@ -1,0 +1,13 @@
+[Unit]
+Description=Set static IP address for wlan0
+Wants=network.target
+Before=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/ip addr add 192.168.220.1/24 dev wlan0
+ExecStart=/sbin/ip link set wlan0 up
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

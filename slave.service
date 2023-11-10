@@ -1,0 +1,11 @@
+[Unit]
+Description= Python Script Service
+After=network.target
+
+[Service]
+Type=simpleUser=dietpi
+ExecStart=/usr/bin/python3 /home/dietpi/Desktop/MDE/slave.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

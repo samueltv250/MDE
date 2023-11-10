@@ -94,9 +94,10 @@ class WiFiManager:
         elif command.startswith("getMeta"):
             self.get_meta(command)
         elif command.startswith("get"):
-            # start_time = time.time()
+            start_time = time.time()
             self.get_file(command, 104857600)
-
+            end_time = time.time()
+            print(f"Time taken to receive file: {end_time - start_time} seconds")
             
         elif command in ["clear_schedule", "start_tracking", "calibrate", "stop_tracking", "device_get"]:
             self.send_and_print(command)
@@ -185,7 +186,7 @@ class WiFiManager:
 
 
 def main():
-    server_ip = "192.168.42.140"  # The IP address of the Raspberry Pi when it's a hotspot
+    server_ip = "192.168.220.1"  # The IP address of the Raspberry Pi when it's a hotspot
     print(f"Connecting to {server_ip}")
     manager = WiFiManager(server_ip)
     manager.run_via_terminal()

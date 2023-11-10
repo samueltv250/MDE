@@ -13,6 +13,7 @@ import serial
 import gps
 import numpy as np
 import SoapySDR as sdr
+import shutil
 
 
 DATA_BASE_DIR = "/home/dietpi/Desktop/MDE/data_base"
@@ -264,6 +265,13 @@ class SatelliteTracker:
                     pickle.dump(samples, f)
                     samples_queue.task_done()
 
+        total_bytes, used_bytes, free_bytes = shutil.disk_usage(DATA_BASE_DIR)
+        free_gb = free_bytes / (1024 ** 3)  # Convert from bytes to gigabytes
+
+        if free_gb < 100:
+            print(f"Not enough disk space: only {free_gb:.2f} GB available.")
+            self.recording = False
+            return  # Exit the function if there isn't enough space
 
         producer_thread1 = threading.Thread(target=producer, args=(stream0, samples_queue1, sample_rate1))
         consumer_thread1 = threading.Thread(target=consumer, args=(samples_queue1, freq1))
@@ -395,7 +403,6 @@ class SatelliteTracker:
                         with self.schedule.mutex:  # Acquire the lock before clearing
                             self.schedule.queue.clear()  # Clear all items from the queue
                         send_message(client_sock, "Schedule cleared")
-
 
 
                     elif data.startswith("getMeta"):
