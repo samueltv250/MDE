@@ -185,7 +185,7 @@ class WiFiManager:
 
 
 def main():
-    server_ip = "192.168.4.1"  # The IP address of the Raspberry Pi when it's a hotspot
+    server_ip = "192.168.42.140"  # The IP address of the Raspberry Pi when it's a hotspot
     print(f"Connecting to {server_ip}")
     manager = WiFiManager(server_ip)
     manager.run_via_terminal()

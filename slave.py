@@ -222,54 +222,39 @@ class SatelliteTracker:
     def record(self, satellite, rise_time, set_time):
         total_time = (set_time - rise_time).seconds
         frequencies = self.satellites_frequencies.get(satellite.name, [self.default_frequency])
-        
-        if len(frequencies) < 2:
-            print(f"Insufficient frequencies for satellite {satellite.name}, need at least 2")
-            return
-        
-        freq1, freq2 = frequencies[:2]  # Get the first two frequencies for recording
-        
-        sample_rate1 = freq1 * 2
-        sample_rate2 = freq2 * 2
 
-        # Create a SoapySDR device instance for the RSPduo in Dual Tuner mode
+        if len(frequencies) == 0:
+            print(f"No frequencies for satellite {satellite.name}")
+            return
+
+        freq1 = frequencies[0]  # Use the first frequency for recording
+        sample_rate1 = freq1 * 2
+
+        # Setup SDR device and stream
         sdr_device = sdr.Device({"driver": "sdrplay", "serial": "230102CE34"})
-        # Initialize both tuners
         sdr_device.setSampleRate(sdr.SOAPY_SDR_RX, 0, sample_rate1)
         sdr_device.setFrequency(sdr.SOAPY_SDR_RX, 0, freq1)
         sdr_device.setGain(sdr.SOAPY_SDR_RX, 0, 0)
 
-        sdr_device.setSampleRate(sdr.SOAPY_SDR_RX, 1, sample_rate2)
-        sdr_device.setFrequency(sdr.SOAPY_SDR_RX, 1, freq2)
-        sdr_device.setGain(sdr.SOAPY_SDR_RX, 1, 0)
-
-        # Prepare streaming for both tuners
         stream0 = sdr_device.setupStream(sdr.SOAPY_SDR_RX, CF32, [0])
-        stream1 = sdr_device.setupStream(sdr.SOAPY_SDR_RX, CF32, [1])
         sdr_device.activateStream(stream0)
-        sdr_device.activateStream(stream1)
 
-        # Queue for sample chunks for both streams
         samples_queue1 = queue.Queue()
-        samples_queue2 = queue.Queue()
-
-        # Calculate samples and chunk sizes
         bytes_per_sample = 8
-        max_bytes_per_file = 50 * 1024 * 1024
-        samples_per_chunk = max_bytes_per_file // bytes_per_sample
-        total_samples = int(max(sample_rate1, sample_rate2) * total_time)
+        samples_per_chunk = 1024  # This might need to be adjusted
+        total_samples = int(sample_rate1 * total_time)
         self.recording = True
 
-        # Define producer and consumer functions for both tuners
         def producer(stream, samples_queue, sample_rate):
             for _ in range(0, total_samples, samples_per_chunk):
                 buff = np.empty(samples_per_chunk, np.complex64)
                 sr = sdr_device.readStream(stream, [buff], len(buff))
+                print(f"Read {sr.ret} samples")  # Log the number of samples read
                 if sr.ret > 0:
                     samples_queue.put(buff[:sr.ret])
-        
+
         def consumer(samples_queue, freq):
-            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             filename = f"{satellite.name}_{freq}Hz_{timestamp}.pkl"
             file_path = os.path.join(DATA_BASE_DIR, filename)
             
@@ -279,29 +264,20 @@ class SatelliteTracker:
                     pickle.dump(samples, f)
                     samples_queue.task_done()
 
-        # Start producer and consumer threads for both tuners
+
         producer_thread1 = threading.Thread(target=producer, args=(stream0, samples_queue1, sample_rate1))
-        producer_thread2 = threading.Thread(target=producer, args=(stream1, samples_queue2, sample_rate2))
         consumer_thread1 = threading.Thread(target=consumer, args=(samples_queue1, freq1))
-        consumer_thread2 = threading.Thread(target=consumer, args=(samples_queue2, freq2))
-        
+
         producer_thread1.start()
-        producer_thread2.start()
         consumer_thread1.start()
-        consumer_thread2.start()
-        
-        # Wait for producer threads to finish
+
         producer_thread1.join()
-        producer_thread2.join()
-        
-        self.recording = False  # Signal consumer threads that recording is done
-        
-        # Wait for consumer threads to finish writing all chunks
+        self.recording = False
         consumer_thread1.join()
-        consumer_thread2.join()
-        
-        # Close the SoapySDR streams and device
+
+        # Close the SDR stream and device
         sdr_device.deactivateStream(stream0)
+        sdr_device.closeStream(stream0)
 
 
     def track_and_record_satellite(self, satellite, rise_time, set_time):
