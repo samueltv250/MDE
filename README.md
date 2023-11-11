@@ -115,3 +115,58 @@ Ensure you use the provided Raspberry Pi image with SDRplay preloaded for the fo
 
 5. Check the Service Status.
    sudo systemctl status slave.service
+
+
+## Instructions to mount a USB drive on boot with the `dietpi` user as the owner:
+
+1. Find the UUID of the USB Drive**:
+   - Run the `blkid` command to find the UUID of your USB drive:
+     ```sh
+     sudo blkid
+     ```
+   - Look for the line that corresponds to your USB drive (`/dev/sda1` in this case) and note the `UUID`.
+
+2. Create a Mount Point**:
+   - Choose a location for your mount point, such as `/mnt/usbdrive`, and create it:
+     ```sh
+     sudo mkdir /mnt/usbdrive
+     ```
+
+3. Edit the `/etc/fstab` File**:
+   - Open the `/etc/fstab` file in a text editor with root privileges:
+     ```sh
+     sudo nano /etc/fstab
+     ```
+   - Add the following line at the end of the file:
+     ```
+     UUID=your-uuid /mnt/usbdrive ext4 defaults,uid=dietpi,gid=dietpi 0 2
+     ```
+     Replace `your-uuid` with the UUID you noted earlier.
+     If your USB drive is not `ext4`, replace `ext4` with the actual filesystem type (e.g., `vfat` for FAT32, `ntfs-3g` for NTFS).
+
+4. Mount the Drive**:
+   - Now you can mount all drives with:
+     ```sh
+     sudo mount -a
+     ```
+   - This will apply all the new configurations set in the `/etc/fstab` file.
+
+5. Set Ownership**:
+   - Change the ownership of the mount point to `dietpi`:
+     ```sh
+     sudo chown dietpi:dietpi /mnt/usbdrive
+     ```
+   - This step is only necessary once, as the `fstab` entry will ensure the correct ownership on boot.
+
+6. Test the Configuration**:
+   - Reboot your Raspberry Pi to ensure the drive mounts automatically with the correct ownership:
+     ```sh
+     sudo reboot
+     ```
+   - After rebooting, verify that the drive is mounted and the ownership is correct with:
+     ```sh
+     ls -l /mnt/usbdrive
+     ```
+
+7. Troubleshooting**:
+   - If you encounter any issues, you can revert the changes in `/etc/fstab` by commenting out the added line and rebooting the system.

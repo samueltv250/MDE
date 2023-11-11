@@ -110,14 +110,14 @@ def list_files(directory):
 class SatelliteTracker:
     def __init__(self, serial_port=None, baudrate=9600):
         # self.gps = gps.init_gps()   # Initialize the GPS module
-
+        self.arduino_found = True
         time.sleep(5) #give time to initialize
         if serial_port is None:
             time.sleep(5) # Allow some time for the Raspberry Pi to detect the Arduino
             serial_port = find_arduino_port()
             if serial_port is None:
                 print("Unable to find Arduino port.")
-        
+                self.arduino_found = False
         self.schedule = queue.Queue()
 
         self.satellites = []
@@ -241,28 +241,32 @@ class SatelliteTracker:
     
     def move_to_position(self, azimuth, elevation):
         """Sends a command to move to a specific azimuth and elevation."""
-        cmd = f"MOVE {azimuth}, {elevation}\n"
-        self.ser.write(cmd.encode('utf-8'))
+        if self.arduino_found:
+            cmd = f"MOVE {azimuth}, {elevation}\n"
+            self.ser.write(cmd.encode('utf-8'))
 
-        # Wait for the response
-        while True:
-            response = self.ser.readline().decode('utf-8').strip()
-            if response.lower() == "moved":
-                return True
-            elif "Error" in response:  # Adjust this condition based on the possible error messages from the Feather
-                print("Error:", response)
-                return False
-            
+            # Wait for the response
+            while True:
+                response = self.ser.readline().decode('utf-8').strip()
+                if response.lower() == "moved":
+                    return True
+                elif "Error" in response:  # Adjust this condition based on the possible error messages from the Feather
+                    print("Error:", response)
+                    return False
+        else:
+            return False
     def calibrate(self):
         """Sends a command to move to a specific azimuth and elevation."""
-        cmd = f"calibrate\n"
-        self.ser.write(cmd.encode('utf-8'))
+        if self.arduino_found:
+            cmd = f"calibrate\n"
+            self.ser.write(cmd.encode('utf-8'))
 
-        # Wait for the response
-        while True:
-            response = self.ser.readline().decode('utf-8').strip()
-            return response
-            
+            # Wait for the response
+            while True:
+                response = self.ser.readline().decode('utf-8').strip()
+                return response
+        else:
+            return "arduino not found"
 
     def record(self, satellite, rise_time, set_time):
         total_time = (set_time - rise_time).seconds
@@ -300,6 +304,7 @@ class SatelliteTracker:
         bytes_per_sample = bits_per_sample/8
         theoretical_recording_size = (self.sample_rate * bytes_per_sample * total_time) / (1024**3)
         projected_used_space = theoretical_recording_size + used
+        print("Theoretical space used: {theoretical_recording_size}")
         if projected_used_space > 120:
             print(f"recording would exceed max space in drive, must clean drive to continue recording")
             self.recording = False
@@ -337,7 +342,7 @@ class SatelliteTracker:
                         self.total_sample += len(samples)
 
                         # Pickle the numpy array directly to avoid the memory overhead of extending a list
-                        print('dumping')
+  
                         pickle.dump(samples, file)
                     except queue.Empty:
                         continue
@@ -479,7 +484,7 @@ class SatelliteTracker:
                         # start generating schedule once all meta data is set, the default time range is 5 hours
                         if self.start_time is None:
                             utc_now = pytz.utc.localize(datetime.utcnow())
-                            uts_plus_five_hours = utc_now + timedelta(hours=5)
+                            uts_plus_five_hours = utc_now + timedelta(hours=8)
                             self.start_time = utc_now.astimezone(self.local_timezone)
                             self.end_time = uts_plus_five_hours.astimezone(self.local_timezone)
                         new_schedule = self.create_schedule()
