@@ -146,6 +146,7 @@ class WiFiManager:
         response = pickle.loads(self.receive_full_message(as_bytes=True))
 
         # Extract and print the metadata
+        used_space = response["used_space"]
         current_time = response["current_time"]
         used_dir = response["directory"]
         is_recording = response["is_recording"]
@@ -155,10 +156,12 @@ class WiFiManager:
         tracking_status = response["tracking"]
         time_zone = datetime.datetime.now(datetime.timezone.utc).astimezone().tzname()
 
-        print(f"Current Time on Raspberry Pi: {current_time.strftime('%Y-%m-%d %H:%M:%S')} {time_zone}")
+        print(f"Current Time on Raspberry Pi: {current_time.strftime('%Y-%m-%d %H:%M:%S')} {time_zone}\n")
         print(f"Tracking Status: {'On' if tracking_status else 'Off'}\n")
         print(f"Recording Status: {'On' if is_recording else 'Off'}\n")
         print(f"Using directory: {used_dir}\n")
+        print(f"Total GB used in directory: {used_space}")
+
         
 
         print("Directory Files:")
@@ -189,17 +192,32 @@ class WiFiManager:
             self.receive_file(destination_path, file_size, chunck_size)
 
 
+import os
 
-def main():
-    server_ip = "192.168.220.1"  # The IP address of the Raspberry Pi when it's a hotspot
-    print(f"Connecting to {server_ip}")
-    manager = WiFiManager(server_ip)
-    manager.run_via_terminal()
-    print("Closing socket")
-    manager.sock.close()
+def get_size_of_directory(directory_path):
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(directory_path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            # skip if it is a symbolic link
+            if not os.path.islink(fp):
+                total_size += os.path.getsize(fp)
+    return total_size / (1024 * 1024 * 1024)  # Convert to GB
+
+# Replace '/path/to/directory' with the path to the directory you want to check
+directory_path = 'data'
+size_in_gb = get_size_of_directory(directory_path)
+print(f"The size of the directory is {size_in_gb:.2f} GB")
+# def main():
+#     server_ip = "192.168.220.1"  # The IP address of the Raspberry Pi when it's a hotspot
+#     print(f"Connecting to {server_ip}")
+#     manager = WiFiManager(server_ip)
+#     manager.run_via_terminal()
+#     print("Closing socket")
+#     manager.sock.close()
 
 
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()

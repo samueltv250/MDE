@@ -13,12 +13,25 @@ import serial
 import gps
 import numpy as np
 import SoapySDR as sdr
-import shutil
+
+
 
 
 DATA_BASE_DIR = "/home/dietpi/Desktop/MDE/data_base"
 
 USB_DIR = "/mnt/usbdrive"
+
+
+def get_size_of_directory(directory_path):
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(directory_path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            # skip if it is a symbolic link
+            if not os.path.islink(fp):
+                total_size += os.path.getsize(fp)
+    return total_size / (1024 * 1024 * 1024)  # Convert to GB
+
 
 def find_arduino_port():
     try:
@@ -165,34 +178,43 @@ class SatelliteTracker:
             self.tracking_thread.join()  # Wait for the thread to complete its execution
         
         self.stop_signal = True
+        self.recording = False
 
     def track_and_record_satellites_concurrently(self):
-        print("Tracking started")
-        while not self.stop_signal and self.schedule.qsize() > 0:
-            while self.local_timezone.localize(datetime.now()) < rise_time:
-                if self.stop_signal:
-                    print(f"Tracking of canceled before it began.")
-                    return  # Exit the method if stop signal is detected
-                time.sleep(0.5)  # Sleep for short intervals to check for stop_signal frequently
+        try:
+            print("Tracking started")
+            while not self.stop_signal and self.schedule.qsize() > 0:
+                item = self.schedule.queue[0] if not self.schedule.empty() else None
+                if item == None:
+                    self.stop_signal = True
+                _, rise_time, set_time, satellite = item
+                while self.local_timezone.localize(datetime.now()) < rise_time:
+                    if self.stop_signal:
+                        print(f"Tracking of canceled before it began.")
+                        return  # Exit the method if stop signal is detected
+                    time.sleep(0.5)  # Sleep for short intervals to check for stop_signal frequently
 
-            try:
-                # Get next item, but don't wait forever. Timeout after 5 seconds, for example.
-                item = self.schedule.get(timeout=5)
-            except queue.Empty:
-                # queue is empty and no item was retrieved in the given timeout.
-                continue
+                try:
+                    # Get next item, but don't wait forever. Timeout after 5 seconds, for example.
+                    item = self.schedule.get(timeout=5)
+                    
+                except queue.Empty:
+                    # queue is empty and no item was retrieved in the given timeout.
+                    continue
 
-            _, rise_time, set_time, satellite = item
+                _, rise_time, set_time, satellite = item
 
-            # Wait until rise time or until stop_signal is set
+                # Wait until rise time or until stop_signal is set
 
-            print(f"Tracking {satellite.name} from {rise_time} to {set_time}")
-            self.track_and_record_satellite(satellite, rise_time, set_time)
+                print(f"Tracking {satellite.name} from {rise_time} to {set_time}")
+                self.track_and_record_satellite(satellite, rise_time, set_time)
 
-            # Add the satellite to the list of already processed satellites
-            self.already_processed_satellites.append(item)
-
-        self.stop_signal = True
+                # Add the satellite to the list of already processed satellites
+                self.already_processed_satellites.append(item)
+        except Exception as e:
+            print("Error occured during tracking: {e}")
+        finally:
+            self.stop_signal = True
 
     def create_schedule(self):
         print(f"Creating schedule")
@@ -273,12 +295,17 @@ class SatelliteTracker:
         iq_queue = queue.Queue(maxsize=100)
 
         # total_bytes, used_bytes, free_bytes = shutil.disk_usage(DATA_BASE_DIR)
-        # used = total_bytes / (1024 ** 3)  # Convert from bytes to gigabytes
-
-        # if used > 10:
-        #     print(f"Not enough disk space: only {free_gb:.2f} GB available.")
-        #     self.recording = False
-        #     return  # Exit the function if there isn't enough space
+        used = get_size_of_directory(DATA_BASE_DIR)
+        bits_per_sample = 32
+        bytes_per_sample = bits_per_sample/8
+        theoretical_recording_size = (self.sample_rate * bytes_per_sample * total_time) / (1024**3)
+        projected_used_space = theoretical_recording_size + used
+        if projected_used_space > 120:
+            print(f"recording would exceed max space in drive, must clean drive to continue recording")
+            self.recording = False
+            self.stop_signal = True
+            return  # Exit the function if there isn't enough space
+        
         # Event to signal when to stop
         stop_event = threading.Event()
         # Function to read from the SDR (Producer)
@@ -299,7 +326,7 @@ class SatelliteTracker:
         def process_iq_samples(iq_queue, stop_event):
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             filename = f"{satellite.name}_{freq1}Hz_{timestamp}.pkl"
-            file_path = os.path.join(DATA_BASE_DIR, filename)
+            file_path = os.path.join(DATA_BASE_DIR, filename).replace(" ","")
 
             with open(file_path, 'wb') as file:
                 while not (stop_event.is_set() and iq_queue.empty()) and self.stop_signal is False:
@@ -407,15 +434,15 @@ class SatelliteTracker:
                         send_message(client_sock, "Waiting on date time info")
                         datetime_info = pickle.loads(receive_full_message(client_sock, as_bytes=True))
                         received_datetime = datetime.strptime(datetime_info['datetime'], "%Y-%m-%d %H:%M:%S")
-
+                        # Set the time zone
+                        time_zone = datetime_info['timezone']
+                        subprocess.call(['sudo', 'timedatectl', 'set-timezone', time_zone])
                         # Format the datetime for the 'date -s' command
                         formatted_datetime = received_datetime.strftime("%Y-%m-%d %H:%M:%S")
                         # Set the system date and time
                         subprocess.call(['sudo', 'date', '-s', formatted_datetime])
 
-                        # Set the time zone
-                        time_zone = datetime_info['timezone']
-                        subprocess.call(['sudo', 'timedatectl', 'set-timezone', time_zone])
+
                         send_message(client_sock, "Finished setting datetime")
                     elif data.startswith("calibrate"):
                         msg = self.calibrate()
@@ -471,7 +498,7 @@ class SatelliteTracker:
                         modified_schedule = [row[:-1] for row in list(self.schedule.queue)]
                         modified_processed_satellites = [row[:-1] for row in self.already_processed_satellites]
 
-                        meta_data = {"is_recording" :self.recording,"directory" :DATA_BASE_DIR, "current_time": pytz.utc.localize(datetime.utcnow()), "data": directory_files, "schedule": modified_schedule, "processed_schedule": modified_processed_satellites, "tracking": not self.stop_signal}
+                        meta_data = {"used_space" : get_size_of_directory(DATA_BASE_DIR), "is_recording" :self.recording,"directory" :DATA_BASE_DIR, "current_time": pytz.utc.localize(datetime.utcnow()), "data": directory_files, "schedule": modified_schedule, "processed_schedule": modified_processed_satellites, "tracking": not self.stop_signal}
 
                         serialized_data = pickle.dumps(meta_data)
                         send_message(client_sock, serialized_data, is_binary=True)
