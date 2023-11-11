@@ -99,7 +99,7 @@ class WiFiManager:
             end_time = time.time()
             print(f"Time taken to receive file: {end_time - start_time} seconds")
             
-        elif command in ["clear_schedule", "start_tracking", "calibrate", "stop_tracking", "device_get"]:
+        elif command in ["clear_schedule", "start_tracking", "calibrate", "stop_tracking", "device_get", "set_single_tuner", "set_dual_tuner"]:
             self.send_and_print(command)
         elif command.startswith("move"):
             self.send_and_print(command)

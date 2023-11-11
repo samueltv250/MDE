@@ -111,7 +111,7 @@ class SatelliteTracker:
         self.already_processed_satellites = []
         # Flag to stop the tracking process
         self.stop_signal = True
-        self.default_frequency = 1e6
+        self.default_frequency = 1.626e9
         # Placeholder for gps module
         # self.latitude, self.longitude = gps.get_coordinates(self.gps)
         self.latitude, self.longitude = 37.229572, -80.413940
@@ -124,12 +124,32 @@ class SatelliteTracker:
 
         self.samples_queue = [queue.Queue(), queue.Queue()]
         self.recording = True
-
+        
         print("Current time: ", self.start_time)
         print("Timezone: ", self.local_timezone)
 
         self.ser = serial.Serial(serial_port, baudrate)
         time.sleep(2)  # Allow some time for connection to establish
+
+
+        devices = sdr.Device.enumerate()
+        for dev in devices:
+            if dev["label"].strip() == "SDRplay Dev0 RSPduo 230102CE34 - Single Tuner":
+                single_device_args = dev
+            elif dev["label"].strip() == "SDRplay Dev1 RSPduo 230102CE34 - Dual Tuner":
+                dual_device_args = dev
+
+
+
+        # initialize receiver in single and dual mode
+        self.singleSdr = sdr.Device(single_device_args)
+        self.dualSdr = sdr.Device(dual_device_args)
+
+
+
+
+        self.mainSdr = sdr.Device(dual_device_args)
+        self.sample_rate = 2e6
 
 
     def start_tracking(self):
@@ -223,70 +243,99 @@ class SatelliteTracker:
     def record(self, satellite, rise_time, set_time):
         total_time = (set_time - rise_time).seconds
         frequencies = self.satellites_frequencies.get(satellite.name, [self.default_frequency])
-
+        
         if len(frequencies) == 0:
             print(f"No frequencies for satellite {satellite.name}")
             return
 
         freq1 = frequencies[0]  # Use the first frequency for recording
-        sample_rate1 = freq1 * 2
 
+        # remove the first frequency from the list
+        self.satellites_frequencies[satellite.name] = frequencies[1:]
+        freq1 = 1.626e9
+        total_time = 1
+        
+
+
+        sdr_device = self.mainSdr
         # Setup SDR device and stream
-        sdr_device = sdr.Device({"driver": "sdrplay", "serial": "230102CE34"})
-        sdr_device.setSampleRate(sdr.SOAPY_SDR_RX, 0, sample_rate1)
+        gain = 30  # Gain in dB
+        sdr_device.setSampleRate(sdr.SOAPY_SDR_RX, 0, self.sample_rate)
         sdr_device.setFrequency(sdr.SOAPY_SDR_RX, 0, freq1)
-        sdr_device.setGain(sdr.SOAPY_SDR_RX, 0, 0)
+        sdr_device.setGain(sdr.SOAPY_SDR_RX, 0, gain)
 
-        stream0 = sdr_device.setupStream(sdr.SOAPY_SDR_RX, CF32, [0])
+        stream0 = sdr_device.setupStream(sdr.SOAPY_SDR_RX, sdr.SOAPY_SDR_CF32)
         sdr_device.activateStream(stream0)
 
-        samples_queue1 = queue.Queue()
-        bytes_per_sample = 8
-        samples_per_chunk = 1024  # This might need to be adjusted
-        total_samples = int(sample_rate1 * total_time)
         self.recording = True
+        # Buffer settings
+        buffer_size = 1024
+        num_samples = int(self.sample_rate)*total_time
 
-        def producer(stream, samples_queue, sample_rate):
-            for _ in range(0, total_samples, samples_per_chunk):
-                buff = np.empty(samples_per_chunk, np.complex64)
-                sr = sdr_device.readStream(stream, [buff], len(buff))
-                print(f"Read {sr.ret} samples")  # Log the number of samples read
-                if sr.ret > 0:
-                    samples_queue.put(buff[:sr.ret])
+        iq_queue = queue.Queue(maxsize=100)
 
-        def consumer(samples_queue, freq):
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            filename = f"{satellite.name}_{freq}Hz_{timestamp}.pkl"
-            file_path = os.path.join(DATA_BASE_DIR, filename)
+        # total_bytes, used_bytes, free_bytes = shutil.disk_usage(DATA_BASE_DIR)
+        # used = total_bytes / (1024 ** 3)  # Convert from bytes to gigabytes
+
+        # if used > 10:
+        #     print(f"Not enough disk space: only {free_gb:.2f} GB available.")
+        #     self.recording = False
+        #     return  # Exit the function if there isn't enough space
+        # Event to signal when to stop
+        stop_event = threading.Event()
+        # Function to read from the SDR (Producer)
+        def read_from_sdr(sdr, rx_stream, buffer_size, num_samples, iq_queue, stop_event):
+            buff = np.empty(buffer_size, dtype=np.complex64)
+            samples_collected = 0
             
-            with open(file_path, 'wb') as f:
-                while self.recording or not samples_queue.empty():
-                    samples = samples_queue.get()
-                    pickle.dump(samples, f)
-                    samples_queue.task_done()
+            while not stop_event.is_set()  and samples_collected < num_samples:
+                sr = sdr.readStream(rx_stream, [buff], buffer_size)
+                if sr.ret > 0:
+                    iq_queue.put(buff[:sr.ret])  # Put a copy of the buffer into the queue
+                    samples_collected += sr.ret
+                elif sr.ret == -1:
+                    print("Overflow occurred")
 
-        total_bytes, used_bytes, free_bytes = shutil.disk_usage(DATA_BASE_DIR)
-        free_gb = free_bytes / (1024 ** 3)  # Convert from bytes to gigabytes
+        self.total_sample = 0
 
-        if free_gb < 100:
-            print(f"Not enough disk space: only {free_gb:.2f} GB available.")
-            self.recording = False
-            return  # Exit the function if there isn't enough space
+        def process_iq_samples(iq_queue, stop_event):
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            filename = f"{satellite.name}_{freq1}Hz_{timestamp}.pkl"
+            file_path = os.path.join(DATA_BASE_DIR, filename)
 
-        producer_thread1 = threading.Thread(target=producer, args=(stream0, samples_queue1, sample_rate1))
-        consumer_thread1 = threading.Thread(target=consumer, args=(samples_queue1, freq1))
+            with open(file_path, 'wb') as file:
+                while not (stop_event.is_set() and iq_queue.empty()):
+                    try:
+                        
+                        # Retrieve a block of samples from the queue
+                        samples = iq_queue.get(timeout=1)
+                        self.total_sample += len(samples)
 
-        producer_thread1.start()
-        consumer_thread1.start()
+                        # Pickle the numpy array directly to avoid the memory overhead of extending a list
+                        print('dumping')
+                        pickle.dump(samples, file)
+                    except queue.Empty:
+                        continue
+        producer_thread = threading.Thread(target=read_from_sdr, args=(sdr_device, stream0, buffer_size, num_samples, iq_queue, stop_event))
+        consumer_thread = threading.Thread(target=process_iq_samples, args=(iq_queue, stop_event))
 
-        producer_thread1.join()
-        self.recording = False
-        consumer_thread1.join()
+        producer_thread.start()
+        consumer_thread.start()
 
-        # Close the SDR stream and device
+
+
+        # Wait for the producer to finish reading
+        producer_thread.join()
+
+        # Signal the consumer to stop processing and exit
+        stop_event.set()
+
+        # Wait for the consumer to finish processing
+        consumer_thread.join()
+        print("Extracted "+ str(self.total_sample)+" samples")
         sdr_device.deactivateStream(stream0)
         sdr_device.closeStream(stream0)
-
+        sdr_device = None
 
     def track_and_record_satellite(self, satellite, rise_time, set_time):
         # Start recording on a separate thread
@@ -371,6 +420,16 @@ class SatelliteTracker:
                     elif data.startswith("calibrate"):
                         msg = self.calibrate()
                         send_message(client_sock, msg)
+
+                    elif data.startswith("set_single_tuner"):
+                        self.mainSdr = self.singleSdr
+                        self.sample_rate = 10e6
+                        send_message(client_sock, "set_single_tuner")
+                        
+                    elif data.startswith("set_dual_tuner"):
+                        self.mainSdr = self.dualSdr
+                        self.sample_rate = 2e6
+                        send_message(client_sock, "set_dual_tuner")
 
                     # setViewingWindow
                     elif data.startswith("setViewingWindow"):
@@ -461,8 +520,12 @@ class SatelliteTracker:
             finally:
                 if client_sock:
                     client_sock.close()
-     
+
+
 
 if __name__ == "__main__":
     tracker = SatelliteTracker()
     tracker.rec_on_exit()
+    # rise_time = datetime.now()
+    # test_dict = {"name":"test"}
+    # tracker.record(test_dict, rise_time, rise_time+timedelta(seconds=1))
