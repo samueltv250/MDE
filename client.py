@@ -10,7 +10,6 @@ class CommandError(Exception):
 
 
 class WiFiManager:
-    DATA_BASE_DIR = "/home/dietpi/Desktop/MDE/data_base"
 
     def __init__(self, device_addr):
         self.device_addr = device_addr
@@ -148,6 +147,7 @@ class WiFiManager:
 
         # Extract and print the metadata
         current_time = response["current_time"]
+        used_dir = response["directory"]
         directory_files = response["data"]
         modified_schedule = response["schedule"]
         modified_processed_satellites = response["processed_schedule"]
@@ -157,6 +157,8 @@ class WiFiManager:
         print(f"Current Time on Raspberry Pi: {current_time.strftime('%Y-%m-%d %H:%M:%S')} {time_zone}")
         print(f"Tracking Status: {'On' if tracking_status else 'Off'}\n")
         print("Directory Files:")
+        print(f"Using directory: {used_dir}\n")
+
         for file in directory_files.split("\n"):
             print(f"- {file}")
         print("\nSchedule:")
@@ -172,7 +174,6 @@ class WiFiManager:
 
     def get_file(self, command, chunck_size = 4096):
         file_path = command.split(" ", 1)[1]
-        file_path = os.path.join(self.DATA_BASE_DIR, file_path)
         message = f"get {file_path} {chunck_size}"
         self.send_message(message)
         response = self.receive_full_message()

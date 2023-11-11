@@ -17,7 +17,8 @@ import shutil
 
 
 DATA_BASE_DIR = "/home/dietpi/Desktop/MDE/data_base"
-CF32 = sdr.SOAPY_SDR_CF32  # Data format for SoapySDR: complex float 32 bits
+
+USB_DIR = "/mnt/usbdrive"
 
 def find_arduino_port():
     try:
@@ -97,7 +98,7 @@ class SatelliteTracker:
     def __init__(self, serial_port=None, baudrate=9600):
         # self.gps = gps.init_gps()   # Initialize the GPS module
 
-
+        time.sleep(5) #give time to initialize
         if serial_port is None:
             time.sleep(5) # Allow some time for the Raspberry Pi to detect the Arduino
             serial_port = find_arduino_port()
@@ -468,13 +469,14 @@ class SatelliteTracker:
                         modified_schedule = [row[:-1] for row in list(self.schedule.queue)]
                         modified_processed_satellites = [row[:-1] for row in self.already_processed_satellites]
 
-                        meta_data = {"current_time": pytz.utc.localize(datetime.utcnow()), "data": directory_files, "schedule": modified_schedule, "processed_schedule": modified_processed_satellites, "tracking": not self.stop_signal}
+                        meta_data = {"directory" :DATA_BASE_DIR, "current_time": pytz.utc.localize(datetime.utcnow()), "data": directory_files, "schedule": modified_schedule, "processed_schedule": modified_processed_satellites, "tracking": not self.stop_signal}
 
                         serialized_data = pickle.dumps(meta_data)
                         send_message(client_sock, serialized_data, is_binary=True)
 
                     elif data.startswith("get"):
                         _, file_path, chuck_size = data.split(" ")
+                        file_path = DATA_BASE_DIR+"/"+file_path
                         chuck_size = int(chuck_size)
                         print("size "+str(chuck_size))
                         
@@ -520,7 +522,11 @@ class SatelliteTracker:
 
 
 
+
 if __name__ == "__main__":
+    if os.path.isdir(USB_DIR):
+        DATA_BASE_DIR = USB_DIR
+    
     tracker = SatelliteTracker()
     tracker.rec_on_exit()
     # rise_time = datetime.now()
