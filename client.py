@@ -19,7 +19,7 @@ class WiFiManager:
         data = message if is_binary else message.encode('utf-8')
         msg_len = len(data)
         self.sock.send(str(msg_len).encode('utf-8'))
-        time.sleep(0.1)
+        time.sleep(0.5)
         while data:
             sent = self.sock.send(data)
             data = data[sent:]
@@ -156,8 +156,9 @@ class WiFiManager:
 
         print(f"Current Time on Raspberry Pi: {current_time.strftime('%Y-%m-%d %H:%M:%S')} {time_zone}")
         print(f"Tracking Status: {'On' if tracking_status else 'Off'}\n")
-        print("Directory Files:")
         print(f"Using directory: {used_dir}\n")
+
+        print("Directory Files:")
 
         for file in directory_files.split("\n"):
             print(f"- {file}")

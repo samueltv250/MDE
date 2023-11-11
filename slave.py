@@ -42,7 +42,7 @@ def send_message(sock, message, is_binary=False):
     # Send message length first
     msg_len = len(data)
     sock.send(str(msg_len).encode('utf-8'))
-    time.sleep(0.1)  # Small delay to allow the receiver to prepare
+    time.sleep(0.5)  # Small delay to allow the receiver to prepare
     
     # Send the actual message
     while data:
@@ -255,15 +255,14 @@ class SatelliteTracker:
             
    
 
-        sdr_device = self.mainSdr
-        # Setup SDR device and stream
+        
         gain = 30  # Gain in dB
-        sdr_device.setSampleRate(sdr.SOAPY_SDR_RX, 0, self.sample_rate)
-        sdr_device.setFrequency(sdr.SOAPY_SDR_RX, 0, freq1)
-        sdr_device.setGain(sdr.SOAPY_SDR_RX, 0, gain)
+        self.mainSdr.setSampleRate(sdr.SOAPY_SDR_RX, 0, self.sample_rate)
+        self.mainSdr.setFrequency(sdr.SOAPY_SDR_RX, 0, freq1)
+        self.mainSdr.setGain(sdr.SOAPY_SDR_RX, 0, gain)
 
-        stream0 = sdr_device.setupStream(sdr.SOAPY_SDR_RX, sdr.SOAPY_SDR_CF32)
-        sdr_device.activateStream(stream0)
+        stream0 = self.mainSdr.setupStream(sdr.SOAPY_SDR_RX, sdr.SOAPY_SDR_CF32)
+        self.mainSdr.activateStream(stream0)
 
         self.recording = True
         # Buffer settings
@@ -286,7 +285,7 @@ class SatelliteTracker:
             buff = np.empty(buffer_size, dtype=np.complex64)
             samples_collected = 0
             
-            while not stop_event.is_set()  and samples_collected < num_samples:
+            while not stop_event.is_set()  and samples_collected < num_samples and self.stop_signal is False:
                 sr = sdr.readStream(rx_stream, [buff], buffer_size)
                 if sr.ret > 0:
                     iq_queue.put(buff[:sr.ret])  # Put a copy of the buffer into the queue
@@ -302,7 +301,7 @@ class SatelliteTracker:
             file_path = os.path.join(DATA_BASE_DIR, filename)
 
             with open(file_path, 'wb') as file:
-                while not (stop_event.is_set() and iq_queue.empty()):
+                while not (stop_event.is_set() and iq_queue.empty()) and self.stop_signal is False:
                     try:
                         
                         # Retrieve a block of samples from the queue
@@ -314,7 +313,7 @@ class SatelliteTracker:
                         pickle.dump(samples, file)
                     except queue.Empty:
                         continue
-        producer_thread = threading.Thread(target=read_from_sdr, args=(sdr_device, stream0, buffer_size, num_samples, iq_queue, stop_event))
+        producer_thread = threading.Thread(target=read_from_sdr, args=(self.mainSdr, stream0, buffer_size, num_samples, iq_queue, stop_event))
         consumer_thread = threading.Thread(target=process_iq_samples, args=(iq_queue, stop_event))
 
         producer_thread.start()
@@ -331,9 +330,10 @@ class SatelliteTracker:
         # Wait for the consumer to finish processing
         consumer_thread.join()
         print("Extracted "+ str(self.total_sample)+" samples")
-        sdr_device.deactivateStream(stream0)
-        sdr_device.closeStream(stream0)
-        sdr_device = None
+        self.mainSdr.deactivateStream(stream0)
+        self.mainSdr.closeStream(stream0)
+
+        self.recording = False
 
     def track_and_record_satellite(self, satellite, rise_time, set_time):
         # Start recording on a separate thread
@@ -345,7 +345,7 @@ class SatelliteTracker:
    
         previous_azimuth, previous_elevation = None, None
 
-        while self.local_timezone.localize(datetime.now()) < set_time:
+        while self.local_timezone.localize(datetime.now()) < set_time and self.stop_signal is False:
             azimuth, elevation = scheduler.get_azimuth_elevation(satellite, observer_location)
             
             # Check if this is the first iteration or if the difference in angle is greater than 1 degree
@@ -355,6 +355,7 @@ class SatelliteTracker:
                 previous_azimuth, previous_elevation = azimuth, elevation
             
             time.sleep(0.1)
+            
     
 
 
@@ -469,7 +470,7 @@ class SatelliteTracker:
                         modified_schedule = [row[:-1] for row in list(self.schedule.queue)]
                         modified_processed_satellites = [row[:-1] for row in self.already_processed_satellites]
 
-                        meta_data = {"directory" :DATA_BASE_DIR, "current_time": pytz.utc.localize(datetime.utcnow()), "data": directory_files, "schedule": modified_schedule, "processed_schedule": modified_processed_satellites, "tracking": not self.stop_signal}
+                        meta_data = {"is_recording" :self.recording,"directory" :DATA_BASE_DIR, "current_time": pytz.utc.localize(datetime.utcnow()), "data": directory_files, "schedule": modified_schedule, "processed_schedule": modified_processed_satellites, "tracking": not self.stop_signal}
 
                         serialized_data = pickle.dumps(meta_data)
                         send_message(client_sock, serialized_data, is_binary=True)
