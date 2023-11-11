@@ -124,7 +124,7 @@ class SatelliteTracker:
         self.end_time = None
 
         self.samples_queue = [queue.Queue(), queue.Queue()]
-        self.recording = True
+        self.recording = False
         
         print("Current time: ", self.start_time)
         print("Timezone: ", self.local_timezone)
@@ -169,6 +169,12 @@ class SatelliteTracker:
     def track_and_record_satellites_concurrently(self):
         print("Tracking started")
         while not self.stop_signal and self.schedule.qsize() > 0:
+            while self.local_timezone.localize(datetime.now()) < rise_time:
+                if self.stop_signal:
+                    print(f"Tracking of canceled before it began.")
+                    return  # Exit the method if stop signal is detected
+                time.sleep(0.5)  # Sleep for short intervals to check for stop_signal frequently
+
             try:
                 # Get next item, but don't wait forever. Timeout after 5 seconds, for example.
                 item = self.schedule.get(timeout=5)
@@ -179,11 +185,6 @@ class SatelliteTracker:
             _, rise_time, set_time, satellite = item
 
             # Wait until rise time or until stop_signal is set
-            while self.local_timezone.localize(datetime.now()) < rise_time:
-                if self.stop_signal:
-                    print(f"Tracking of {satellite.name} canceled.")
-                    return  # Exit the method if stop signal is detected
-                time.sleep(0.5)  # Sleep for short intervals to check for stop_signal frequently
 
             print(f"Tracking {satellite.name} from {rise_time} to {set_time}")
             self.track_and_record_satellite(satellite, rise_time, set_time)

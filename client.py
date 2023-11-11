@@ -148,6 +148,7 @@ class WiFiManager:
         # Extract and print the metadata
         current_time = response["current_time"]
         used_dir = response["directory"]
+        is_recording = response["is_recording"]
         directory_files = response["data"]
         modified_schedule = response["schedule"]
         modified_processed_satellites = response["processed_schedule"]
@@ -156,7 +157,9 @@ class WiFiManager:
 
         print(f"Current Time on Raspberry Pi: {current_time.strftime('%Y-%m-%d %H:%M:%S')} {time_zone}")
         print(f"Tracking Status: {'On' if tracking_status else 'Off'}\n")
+        print(f"Recording Status: {'On' if is_recording else 'Off'}\n")
         print(f"Using directory: {used_dir}\n")
+        
 
         print("Directory Files:")
 
