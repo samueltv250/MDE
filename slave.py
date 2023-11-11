@@ -242,20 +242,17 @@ class SatelliteTracker:
 
     def record(self, satellite, rise_time, set_time):
         total_time = (set_time - rise_time).seconds
-        frequencies = self.satellites_frequencies.get(satellite.name, [self.default_frequency])
-        
-        if len(frequencies) == 0:
-            print(f"No frequencies for satellite {satellite.name}")
-            return
-
-        freq1 = frequencies[0]  # Use the first frequency for recording
-
-        # remove the first frequency from the list
-        self.satellites_frequencies[satellite.name] = frequencies[1:]
-        freq1 = 1.626e9
-        total_time = 1
-        
-
+        if self.satellites_frequencies.get(satellite.name) is None or len (self.satellites_frequencies.get(satellite.name)) == 0:
+            print(f"No frequencies for satellite {satellite.name}, defaulting to {self.default_frequency}")
+            freq1 = self.default_frequency
+        elif len(self.satellites_frequencies.get(satellite.name)) == 1:
+            freq1 = self.satellites_frequencies[satellite.name][0]
+            self.satellites_frequencies.pop(satellite.name)
+        else:
+            freq1 = self.satellites_frequencies[satellite.name][0]
+            self.satellites_frequencies[satellite.name] = self.satellites_frequencies[satellite.name][1:]
+            
+   
 
         sdr_device = self.mainSdr
         # Setup SDR device and stream
