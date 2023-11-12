@@ -227,12 +227,6 @@ class SatelliteTracker:
     def create_schedule(self):
         print(f"Creating schedule")
              # Getting the current UTC time
-
-        utc_now = pytz.utc.localize(datetime.utcnow())
-        uts_plus_five_hours = utc_now + timedelta(hours=5) # 5 hours ahead of UTC
-        self.start_time = utc_now.astimezone(self.local_timezone)                # Current time
-        self.end_time = uts_plus_five_hours.astimezone(self.local_timezone)        # Current time plus 1 day
-
         old_schedule = []
         while not self.schedule.empty():
             old_schedule.append(self.schedule.get())
@@ -276,7 +270,7 @@ class SatelliteTracker:
         else:
             return "arduino not found"
 
-    def record(self, satellite, rise_time, set_time, channel):
+    def record(self, satellite, rise_time, set_time):
         if self.dualMode:
             self.mainSdr = sdr.Device(self.dual_device_args)
         else:
@@ -296,20 +290,18 @@ class SatelliteTracker:
         self.stop_signal = False
 
         gain = 30  # Gain in dB
-        # only channel 0
-        self.mainSdr.setSampleRate(sdr.SOAPY_SDR_RX, channel, self.sample_rate)
-        self.mainSdr.setFrequency(sdr.SOAPY_SDR_RX, channel, freq1)
-        self.mainSdr.setGain(sdr.SOAPY_SDR_RX, channel, gain)
-        self.mainSdr.acquireWriteBuffer
-        stream0 = self.mainSdr.setupStream(sdr.SOAPY_SDR_RX, sdr.SOAPY_SDR_CF32)
-        self.mainSdr.activateStream(stream0)
+
+
+
+
+
 
         self.recording = True
         # Buffer settings
         buffer_size = 524288
         num_samples = int(self.sample_rate)*total_time
-
         iq_queue = queue.Queue(maxsize=100)
+        iq_queue2 = queue.Queue(maxsize=100)
 
         # total_bytes, used_bytes, free_bytes = shutil.disk_usage(DATA_BASE_DIR)
         used = get_size_of_directory(DATA_BASE_DIR)
@@ -324,19 +316,39 @@ class SatelliteTracker:
             self.stop_signal = True
             return  # Exit the function if there isn't enough space
         
+
+
+
+
+
+        self.mainSdr.setSampleRate(sdr.SOAPY_SDR_RX, 0, self.sample_rate)
+        self.mainSdr.setFrequency(sdr.SOAPY_SDR_RX, 0, freq1)
+        self.mainSdr.setGain(sdr.SOAPY_SDR_RX, 0, gain)
+        stream0 = self.mainSdr.setupStream(sdr.SOAPY_SDR_RX, sdr.SOAPY_SDR_CF32)
+        self.mainSdr.activateStream(stream0)
+        if self.dualMode:
+            self.mainSdr.setSampleRate(sdr.SOAPY_SDR_RX, 1, self.sample_rate)
+            self.mainSdr.setFrequency(sdr.SOAPY_SDR_RX, 1, freq1)
+            self.mainSdr.setGain(sdr.SOAPY_SDR_RX, 1, gain)
+            stream1 = self.mainSdr.setupStream(sdr.SOAPY_SDR_RX, sdr.SOAPY_SDR_CF32)
+        
+        
+
+        
         # Event to signal when to stop
         stop_event = threading.Event()
+        stop_event2 = threading.Event()
         # Function to read from the SDR (Producer)
         def read_from_sdr(sdr, rx_stream, buffer_size, num_samples, iq_queue, stop_event):
             buff = np.empty(buffer_size, dtype=np.complex64)
             samples_collected = 0
-            
+ 
             while not stop_event.is_set()  and samples_collected < num_samples and self.stop_signal is False:
                 sr = sdr.readStream(rx_stream, [buff], buffer_size)
                 if sr.ret > 0:
                     iq_queue.put(buff[:sr.ret])  # Put a copy of the buffer into the queue
                     samples_collected += sr.ret
-                    self.mainSdr.releaseReadBuffer(stream0, sr.ret)
+                    self.mainSdr.releaseReadBuffer(rx_stream, sr.ret)
                     
                 elif sr.ret == -1:
                     print("--OVerflow occurred")
@@ -344,9 +356,9 @@ class SatelliteTracker:
             print("Finished collecting samples")
         self.total_sample = 0
 
-        def process_iq_samples(iq_queue, stop_event):
+        def process_iq_samples(iq_queue, stop_event, channel):
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            filename = f"{satellite.name}_{freq1}Hz_{timestamp}Chan_"+str(channel)+".pkl"
+            filename = f"{satellite.name}_{freq1}Hz_{timestamp}Chan_"+str(channel+1)+".pkl"
             file_path = os.path.join(DATA_BASE_DIR, filename).replace(" ","")
 
             with open(file_path, 'ab') as file:
@@ -366,37 +378,49 @@ class SatelliteTracker:
         print(f"starting record")
 
         producer_thread = threading.Thread(target=read_from_sdr, args=(self.mainSdr, stream0, buffer_size, num_samples, iq_queue, stop_event))
-        consumer_thread = threading.Thread(target=process_iq_samples, args=(iq_queue, stop_event))
+        consumer_thread = threading.Thread(target=process_iq_samples, args=(iq_queue, stop_event, 0))
+
+        if self.dualMode:
+            producer_thread2 = threading.Thread(target=read_from_sdr, args=(self.mainSdr, stream1, buffer_size, num_samples, iq_queue2, stop_event))
+            consumer_thread2 = threading.Thread(target=process_iq_samples, args=(iq_queue2, stop_event, 1))
+
 
         producer_thread.start()
         consumer_thread.start()
-
-
-
+        if self.dualMode:
+            producer_thread2.start()
+            consumer_thread2.start()
         # Wait for the producer to finish reading
-        producer_thread.join()
 
+
+        producer_thread.join()
         # Signal the consumer to stop processing and exit
         stop_event.set()
-
         # Wait for the consumer to finish processing
         consumer_thread.join()
         print("Extracted "+ str(self.total_sample)+" samples")
         self.mainSdr.deactivateStream(stream0)
         self.mainSdr.closeStream(stream0)
-        self.mainSdr.close()
 
+        if self.dualMode:
+            producer_thread2.join()
+            # Signal the consumer to stop processing and exit
+            stop_event2.set()
+            # Wait for the consumer to finish processing
+            consumer_thread2.join()
+            print("Extracted "+ str(self.total_sample)+" samples")
+            self.mainSdr.deactivateStream(stream1)
+            self.mainSdr.closeStream(stream1)
+        
+        self.mainSdr.close()
         self.recording = False
         
         
 
     def track_and_record_satellite(self, satellite, rise_time, set_time):
         # Start recording on a separate thread
-        self.recording_thread = threading.Thread(target=self.record, args=(satellite, rise_time, set_time, 0))
+        self.recording_thread = threading.Thread(target=self.record, args=(satellite, rise_time, set_time))
         self.recording_thread.start()
-        if self.dualMode:
-            self.recording_thread2 = threading.Thread(target=self.record, args=(satellite, rise_time, set_time, 1))
-            self.recording_thread2.start()
         
 
         observer_location = scheduler.wgs84.latlon(self.latitude, self.longitude)
@@ -503,13 +527,24 @@ class SatelliteTracker:
                         end_time = self.local_timezone.localize(datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S"))
                         self.start_time = start_time
                         self.end_time = end_time
+                        send_message(client_sock, "setViewingWindow")
+             
+                    elif data.startswith("setCord"):
+                        parts = data.split(" ")
+                        command = parts[0]
+                        latitude = parts[1]
+                        longitude = parts[2]
+                        self.latitude = float(latitude)
+                        self.longitude = float(longitude)
+                        send_message(client_sock, "setCord")
+                                
 
                     elif data.startswith("add_to_queue "):
                         lines = data.split('\n\n')
 
                         self.satellites = scheduler.load_tle_from_string(lines[0].replace("add_to_queue ", ""))
                         self.satellites_frequencies = parse_satellite_data(lines[1])
-                        # start generating schedule once all meta data is set, the default time range is 5 hours
+                        # start generating schedule once all meta data is set, the default time range is 8 hours
                         if self.start_time is None:
                             utc_now = pytz.utc.localize(datetime.utcnow())
                             uts_plus_five_hours = utc_now + timedelta(hours=8)
