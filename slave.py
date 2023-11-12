@@ -148,6 +148,7 @@ class SatelliteTracker:
 
         devices = sdr.Device.enumerate()
         for dev in devices:
+            print(dev)
             if dev["label"].strip() == "SDRplay Dev0 RSPduo 230102CE34 - Single Tuner":
                 single_device_args = dev
             elif dev["label"].strip() == "SDRplay Dev1 RSPduo 230102CE34 - Dual Tuner":
@@ -157,13 +158,17 @@ class SatelliteTracker:
 
         # initialize receiver in single and dual mode
         self.singleSdr = sdr.Device(single_device_args)
+        
         self.dualSdr = sdr.Device(dual_device_args)
 
 
+        self.single_device_args = single_device_args
+        self.dual_device_args = dual_device_args
 
-
+        
         self.mainSdr = sdr.Device(dual_device_args)
         self.sample_rate = 2e6
+        self.dualMode = True
 
 
     def start_tracking(self):
@@ -189,6 +194,8 @@ class SatelliteTracker:
                     self.stop_signal = True
                 _, rise_time, set_time, satellite = item
                 while self.local_timezone.localize(datetime.now()) < rise_time:
+                    print(self.local_timezone.localize(datetime.now()))
+                    print(rise_time)
                     if self.stop_signal:
                         print(f"Tracking of canceled before it began.")
                         return  # Exit the method if stop signal is detected
@@ -215,6 +222,7 @@ class SatelliteTracker:
             print("Error occured during tracking: {e}")
         finally:
             self.stop_signal = True
+
 
     def create_schedule(self):
         print(f"Creating schedule")
@@ -268,7 +276,12 @@ class SatelliteTracker:
         else:
             return "arduino not found"
 
-    def record(self, satellite, rise_time, set_time):
+    def record(self, satellite, rise_time, set_time, channel):
+        if self.dualMode:
+            self.mainSdr = sdr.Device(self.dual_device_args)
+        else:
+            self.mainSdr = sdr.Device(self.single_device_args)
+
         total_time = (set_time - rise_time).seconds
         if self.satellites_frequencies.get(satellite.name) is None or len (self.satellites_frequencies.get(satellite.name)) == 0:
             print(f"No frequencies for satellite {satellite.name}, defaulting to {self.default_frequency}")
@@ -280,20 +293,20 @@ class SatelliteTracker:
             freq1 = self.satellites_frequencies[satellite.name][0]
             self.satellites_frequencies[satellite.name] = self.satellites_frequencies[satellite.name][1:]
             
-   
+        self.stop_signal = False
 
-        
         gain = 30  # Gain in dB
-        self.mainSdr.setSampleRate(sdr.SOAPY_SDR_RX, 0, self.sample_rate)
-        self.mainSdr.setFrequency(sdr.SOAPY_SDR_RX, 0, freq1)
-        self.mainSdr.setGain(sdr.SOAPY_SDR_RX, 0, gain)
-
+        # only channel 0
+        self.mainSdr.setSampleRate(sdr.SOAPY_SDR_RX, channel, self.sample_rate)
+        self.mainSdr.setFrequency(sdr.SOAPY_SDR_RX, channel, freq1)
+        self.mainSdr.setGain(sdr.SOAPY_SDR_RX, channel, gain)
+        self.mainSdr.acquireWriteBuffer
         stream0 = self.mainSdr.setupStream(sdr.SOAPY_SDR_RX, sdr.SOAPY_SDR_CF32)
         self.mainSdr.activateStream(stream0)
 
         self.recording = True
         # Buffer settings
-        buffer_size = 1024
+        buffer_size = 524288
         num_samples = int(self.sample_rate)*total_time
 
         iq_queue = queue.Queue(maxsize=100)
@@ -304,7 +317,7 @@ class SatelliteTracker:
         bytes_per_sample = bits_per_sample/8
         theoretical_recording_size = (self.sample_rate * bytes_per_sample * total_time) / (1024**3)
         projected_used_space = theoretical_recording_size + used
-        print("Theoretical space used: {theoretical_recording_size}")
+        print("Theoretical space used:"+str(theoretical_recording_size))
         if projected_used_space > 120:
             print(f"recording would exceed max space in drive, must clean drive to continue recording")
             self.recording = False
@@ -323,17 +336,20 @@ class SatelliteTracker:
                 if sr.ret > 0:
                     iq_queue.put(buff[:sr.ret])  # Put a copy of the buffer into the queue
                     samples_collected += sr.ret
+                    self.mainSdr.releaseReadBuffer(stream0, sr.ret)
+                    
                 elif sr.ret == -1:
-                    print("Overflow occurred")
-
+                    print("--OVerflow occurred")
+                    self.stop_signal = True
+            print("Finished collecting samples")
         self.total_sample = 0
 
         def process_iq_samples(iq_queue, stop_event):
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            filename = f"{satellite.name}_{freq1}Hz_{timestamp}.pkl"
+            filename = f"{satellite.name}_{freq1}Hz_{timestamp}Chan_"+str(channel)+".pkl"
             file_path = os.path.join(DATA_BASE_DIR, filename).replace(" ","")
 
-            with open(file_path, 'wb') as file:
+            with open(file_path, 'ab') as file:
                 while not (stop_event.is_set() and iq_queue.empty()) and self.stop_signal is False:
                     try:
                         
@@ -345,7 +361,10 @@ class SatelliteTracker:
   
                         pickle.dump(samples, file)
                     except queue.Empty:
+                        print("Queue empty")
                         continue
+        print(f"starting record")
+
         producer_thread = threading.Thread(target=read_from_sdr, args=(self.mainSdr, stream0, buffer_size, num_samples, iq_queue, stop_event))
         consumer_thread = threading.Thread(target=process_iq_samples, args=(iq_queue, stop_event))
 
@@ -365,13 +384,20 @@ class SatelliteTracker:
         print("Extracted "+ str(self.total_sample)+" samples")
         self.mainSdr.deactivateStream(stream0)
         self.mainSdr.closeStream(stream0)
+        self.mainSdr.close()
 
         self.recording = False
+        
+        
 
     def track_and_record_satellite(self, satellite, rise_time, set_time):
         # Start recording on a separate thread
-        self.recording_thread = threading.Thread(target=self.record, args=(satellite, rise_time, set_time))
+        self.recording_thread = threading.Thread(target=self.record, args=(satellite, rise_time, set_time, 0))
         self.recording_thread.start()
+        if self.dualMode:
+            self.recording_thread2 = threading.Thread(target=self.record, args=(satellite, rise_time, set_time, 1))
+            self.recording_thread2.start()
+        
 
         observer_location = scheduler.wgs84.latlon(self.latitude, self.longitude)
         
@@ -392,7 +418,7 @@ class SatelliteTracker:
     
 
 
-    def rec_on_exit(self, ip_address='0.0.0.0', port=12345):
+    def rec_on_exit(self, ip_address='0.0.0.0', port=22325):
         server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Set the SO_REUSEADDR option
         
@@ -456,11 +482,13 @@ class SatelliteTracker:
                     elif data.startswith("set_single_tuner"):
                         self.mainSdr = self.singleSdr
                         self.sample_rate = 10e6
+                        self.dualMode = False
                         send_message(client_sock, "set_single_tuner")
                         
                     elif data.startswith("set_dual_tuner"):
                         self.mainSdr = self.dualSdr
                         self.sample_rate = 2e6
+                        self.dualMode = True
                         send_message(client_sock, "set_dual_tuner")
 
                     # setViewingWindow
@@ -560,9 +588,10 @@ class SatelliteTracker:
 if __name__ == "__main__":
     if os.path.isdir(USB_DIR):
         DATA_BASE_DIR = USB_DIR
-    
+
+
     tracker = SatelliteTracker()
+
+
+
     tracker.rec_on_exit()
-    # rise_time = datetime.now()
-    # test_dict = {"name":"test"}
-    # tracker.record(test_dict, rise_time, rise_time+timedelta(seconds=1))

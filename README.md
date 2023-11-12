@@ -8,16 +8,16 @@ Ensure you use the provided Raspberry Pi image with SDRplay preloaded for the fo
     cd Desktop && git clone https://github.com/samueltv250/MDE.git
 
 2. Install required Python packages.
-    pip install skyfield && pip install timezonefinder && pip install serial && pip install adafruit-circuitpython-gps
+    pip install --break-system-packages skyfield && pip install --break-system-packages timezonefinder && pip install --break-system-packages pyserial && pip install --break-system-packages adafruit-circuitpython-gps
 
 ## Configuring Raspberry Pi as a Hotspot with Static IP Address
 
 ### Update and Upgrade DietPi
    sudo apt-get update && sudo apt-get upgrade -y
 
-### Install Hostapd and Dnsmasq
+### Install Exfatprogs, Hostapd and Dnsmasq
    sudo apt-get install hostapd dnsmasq -y
-
+   sudo apt-get install exfatprogs
 ### Stop Services to Configure Them
    sudo systemctl stop hostapd && sudo systemctl stop dnsmasq
 
@@ -41,7 +41,7 @@ Ensure you use the provided Raspberry Pi image with SDRplay preloaded for the fo
 2. Point Hostapd to the Configuration File.
    sudo nano /etc/default/hostapd
    *Replace the #DAEMON_CONF line with:*
-   DAEMON_CONF=\"/etc/hostapd/hostapd.conf\"
+   DAEMON_CONF="/etc/hostapd/hostapd.conf"
 
 ### Configure Dnsmasq
 1. Rename the original configuration file.
@@ -57,19 +57,19 @@ Ensure you use the provided Raspberry Pi image with SDRplay preloaded for the fo
 1. Create a systemd service file.
    sudo nano /etc/systemd/system/static-ip-wlan0.service
    *Add the following lines to the file:*
-    [Unit]
-    Description=Set static IP address for wlan0
-    Wants=network.target
-    Before=network.target
+   [Unit]
+   Description=Set static IP address for wlan0
+   Wants=network.target
+   Before=network.target
 
-    [Service]
-    Type=oneshot
-    ExecStart=/sbin/ip addr add 192.168.220.1/24 dev wlan0
-    ExecStart=/sbin/ip link set wlan0 up
-    RemainAfterExit=yes
+   [Service]
+   Type=oneshot
+   ExecStart=/sbin/ip addr add 192.168.220.1/24 dev wlan0
+   ExecStart=/sbin/ip link set wlan0 up
+   RemainAfterExit=yes
 
-    [Install]
-    WantedBy=multi-user.target
+   [Install]
+   WantedBy=multi-user.target
 
 2. Enable and start the service.
    sudo systemctl daemon-reload && sudo systemctl enable static-ip-wlan0 && sudo systemctl start static-ip-wlan0
@@ -81,7 +81,7 @@ Ensure you use the provided Raspberry Pi image with SDRplay preloaded for the fo
    sudo reboot
 
 ### Improve Wireless Configuration
-1. Call dietpi-config.
+1. Call sudo dietpi-config.
 2. Enable 802.11n/ac/ax.
 3. Change Frequency to 5 GHz.
 
@@ -139,10 +139,10 @@ Ensure you use the provided Raspberry Pi image with SDRplay preloaded for the fo
      ```
    - Add the following line at the end of the file:
      ```
-     UUID=your-uuid /mnt/usbdrive ext4 defaults,uid=dietpi,gid=dietpi 0 2
+     UUID=your-uuid /mnt/usbdrive exfat uid=1000,gid=1000 0 2
      ```
      Replace `your-uuid` with the UUID you noted earlier.
-     If your USB drive is not `ext4`, replace `ext4` with the actual filesystem type (e.g., `vfat` for FAT32, `ntfs-3g` for NTFS).
+     If your USB drive is not `exfat`, replace `exfat` with the actual filesystem type (e.g., `vfat` for FAT32, `ntfs-3g` for NTFS).
 
 4. Mount the Drive**:
    - Now you can mount all drives with:
@@ -169,4 +169,4 @@ Ensure you use the provided Raspberry Pi image with SDRplay preloaded for the fo
      ```
 
 7. Troubleshooting**:
-   - If you encounter any issues, you can revert the changes in `/etc/fstab` by commenting out the added line and rebooting the system.
+   - If you encounter any issues, you can revert the changes in `/etc/fstab` by commenting out the added line and rebooting the system. The backend will continue to operate without a drive but it will be limited to wireless offloading and less space.

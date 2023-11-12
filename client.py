@@ -34,7 +34,7 @@ class WiFiManager:
             bytes_left -= len(chunk)
         return b''.join(received_data) if as_bytes else b''.join(received_data).decode('utf-8')
 
-    def connect_to_device(self, ip_address, port=12345):
+    def connect_to_device(self, ip_address, port=22325):
         
         while True:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
