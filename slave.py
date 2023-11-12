@@ -13,7 +13,7 @@ import serial
 import gps
 import numpy as np
 import SoapySDR as sdr
-
+from sdr_recorder import SDRRecorder
 
 
 
@@ -145,28 +145,16 @@ class SatelliteTracker:
         self.ser = serial.Serial(serial_port, baudrate)
         time.sleep(2)  # Allow some time for connection to establish
 
-
+        self.dual_device_args = ""
+        self.single_device_args = ""
         devices = sdr.Device.enumerate()
         for dev in devices:
             print(dev)
-            if dev["label"].strip() == "SDRplay Dev0 RSPduo 230102CE34 - Single Tuner":
-                single_device_args = dev
-            elif dev["label"].strip() == "SDRplay Dev1 RSPduo 230102CE34 - Dual Tuner":
-                dual_device_args = dev
-
-
-
-        # initialize receiver in single and dual mode
-        self.singleSdr = sdr.Device(single_device_args)
-        
-        self.dualSdr = sdr.Device(dual_device_args)
-
-
-        self.single_device_args = single_device_args
-        self.dual_device_args = dual_device_args
-
-        
-        self.mainSdr = sdr.Device(dual_device_args)
+            if "Single Tuner" in dev["label"]:
+                self.single_device_args = dev
+            elif "Dual Tuner" in dev["label"]:
+                self.dual_device_args = dev
+   
         self.sample_rate = 2e6
         self.dualMode = True
 
@@ -193,13 +181,14 @@ class SatelliteTracker:
                 if item == None:
                     self.stop_signal = True
                 _, rise_time, set_time, satellite = item
-                # while self.local_timezone.localize(datetime.now()) < rise_time:
-                #     print(self.local_timezone.localize(datetime.now()))
-                #     print(rise_time)
-                #     if self.stop_signal:
-                #         print(f"Tracking of canceled before it began.")
-                #         return  # Exit the method if stop signal is detected
-                #     time.sleep(0.5)  # Sleep for short intervals to check for stop_signal frequently
+                while self.local_timezone.localize(datetime.now()) < rise_time:
+                    print("waiting")
+                    print(self.local_timezone.localize(datetime.now()))
+                    print(rise_time)
+                    if self.stop_signal:
+                        print(f"Tracking of canceled before it began.")
+                        return  # Exit the method if stop signal is detected
+                    time.sleep(0.5)  # Sleep for short intervals to check for stop_signal frequently
 
                 try:
                     # Get next item, but don't wait forever. Timeout after 5 seconds, for example.
@@ -277,7 +266,6 @@ class SatelliteTracker:
 
 
         total_time = (set_time - rise_time).seconds
-        total_time = 5
         if self.satellites_frequencies.get(satellite.name) is None or len (self.satellites_frequencies.get(satellite.name)) == 0:
             print(f"No frequencies for satellite {satellite.name}, defaulting to {self.default_frequency}")
             freq1 = self.default_frequency
@@ -289,7 +277,7 @@ class SatelliteTracker:
             self.satellites_frequencies[satellite.name] = self.satellites_frequencies[satellite.name][1:]
             
         self.stop_signal = False
-
+        self.recording = True
         gain = 30
 
 
@@ -297,22 +285,16 @@ class SatelliteTracker:
 
 
 
-        self.recording = True
-        # Buffer settings
-        buffer_size = 524288
-        num_samples = int(self.sample_rate)*total_time
-        iq_queue = queue.Queue(maxsize=100)
-        if self.dualMode:
-            gain = 30
-            iq_queue2 = queue.Queue(maxsize=100)
+        
+       
 
-        # total_bytes, used_bytes, free_bytes = shutil.disk_usage(DATA_BASE_DIR)
+        
         used = get_size_of_directory(DATA_BASE_DIR)
         bits_per_sample = 32
         bytes_per_sample = bits_per_sample/8
         theoretical_recording_size = (self.sample_rate * bytes_per_sample * total_time) / (1024**3)
         projected_used_space = theoretical_recording_size + used
-        print("Theoretical space used:"+str(theoretical_recording_size))
+        print("Theoretical space used: "+str(theoretical_recording_size))
         if projected_used_space > 120:
             print(f"recording would exceed max space in drive, must clean drive to continue recording")
             self.recording = False
@@ -320,124 +302,14 @@ class SatelliteTracker:
             return  # Exit the function if there isn't enough space
         
 
-        print("Starting loop")
-        
-
-        while True:
-            try:
-                if self.dualMode:
-                    self.mainSdr = sdr.Device(self.dual_device_args)
-                else:
-                    self.mainSdr = sdr.Device(self.single_device_args)
-                try:
-                    print(str(self.mainSdr.listSampleRates(sdr.SOAPY_SDR_RX,0)))
-                except:
-                    print("error getting data")
-                print("created device")
-                self.mainSdr.setSampleRate(sdr.SOAPY_SDR_RX, 0, self.sample_rate)
-                print("setRate")
-                self.mainSdr.setFrequency(sdr.SOAPY_SDR_RX, 0, freq1)
-                print("setFrequency")
-                self.mainSdr.setGain(sdr.SOAPY_SDR_RX, 0, gain)
-                print("setGain")
-
-                stream0 = self.mainSdr.setupStream(sdr.SOAPY_SDR_RX, sdr.SOAPY_SDR_CF32)
-                print("setGain")
-                self.mainSdr.activateStream(stream0)
-                print("configured device")
-                if self.dualMode:
-                    self.mainSdr.setSampleRate(sdr.SOAPY_SDR_RX, 1, self.sample_rate)
-                    self.mainSdr.setFrequency(sdr.SOAPY_SDR_RX, 1, freq1)
-                    self.mainSdr.setGain(sdr.SOAPY_SDR_RX, 1, gain)
-                    stream1 = self.mainSdr.setupStream(sdr.SOAPY_SDR_RX, sdr.SOAPY_SDR_CF32)
-                    self.mainSdr.activateStream(stream1)
-                break
-            except:
-                print("Failed to initialize device, retrying")
-        print("devices initialized")
-        time.sleep(1)
-        
-        # Event to signal when to stop
-        stop_event = threading.Event()
-        if self.dualMode:
-            stop_event2 = threading.Event()
-        # Function to read from the SDR (Producer)
-        def read_from_sdr(sdr, rx_stream, buffer_size, num_samples, iq_queue, stop_event):
-            buff = np.empty(buffer_size, dtype=np.complex64)
-            samples_collected = 0
- 
-            while not stop_event.is_set()  and samples_collected < num_samples and self.stop_signal is False:
-                sr = sdr.readStream(rx_stream, [buff], buffer_size)
-                if sr.ret > 0:
-                    iq_queue.put(buff[:sr.ret])  # Put a copy of the buffer into the queue
-                    samples_collected += sr.ret
-                    self.mainSdr.releaseReadBuffer(rx_stream, sr.ret)
-                    
-                elif sr.ret == -1:
-                    print("Overflow occurred")
-                    self.stop_signal = True
-            print("Finished collecting samples")
-        self.total_sample = 0
-
-        def process_iq_samples(iq_queue, stop_event, channel):
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            filename = f"{satellite.name}_{freq1}Hz_{timestamp}Chan_"+str(channel+1)+".pkl"
-            file_path = os.path.join(DATA_BASE_DIR, filename).replace(" ","")
-
-            with open(file_path, 'ab') as file:
-                while not (stop_event.is_set() and iq_queue.empty()) and self.stop_signal is False:
-                    try:
-                        
-                        # Retrieve a block of samples from the queue
-                        samples = iq_queue.get(timeout=1)
-                        self.total_sample += len(samples)
-
-                        # Pickle the numpy array directly to avoid the memory overhead of extending a list
-                        
-                        # pickle.dump(samples, file)
-                    except queue.Empty:
-                        print("Queue empty")
-                        continue
-        print(f"starting record")
-
-        producer_thread = threading.Thread(target=read_from_sdr, args=(self.mainSdr, stream0, buffer_size, num_samples, iq_queue, stop_event))
-        consumer_thread = threading.Thread(target=process_iq_samples, args=(iq_queue, stop_event, 0))
 
         if self.dualMode:
-            producer_thread2 = threading.Thread(target=read_from_sdr, args=(self.mainSdr, stream1, buffer_size, num_samples, iq_queue2, stop_event2))
-            consumer_thread2 = threading.Thread(target=process_iq_samples, args=(iq_queue2, stop_event2, 1))
+            recorder = SDRRecorder(self.dual_device_args, mode='dual')
+        else:
+            recorder = SDRRecorder(self.single_device_args, mode='single')
+        recorder.start_recording(1.626e9, 30, 10)
 
 
-        producer_thread.start()
-        consumer_thread.start()
-        if self.dualMode:
-            producer_thread2.start()
-            consumer_thread2.start()
-        # Wait for the producer to finish reading
-
-
-        producer_thread.join()
-        # Signal the consumer to stop processing and exit
-        stop_event.set()
-        # Wait for the consumer to finish processing
-        consumer_thread.join()
-        
-
-
-        self.mainSdr.deactivateStream(stream0)
-        self.mainSdr.closeStream(stream0)
-
-        if self.dualMode:
-            producer_thread2.join()
-            # Signal the consumer to stop processing and exit
-            stop_event2.set()
-            # Wait for the consumer to finish processing
-            consumer_thread2.join()
-            self.mainSdr.deactivateStream(stream1)
-            self.mainSdr.closeStream(stream1)
-        
-        self.mainSdr.close()
-        print("Extracted "+ str(self.total_sample)+" samples")
         self.recording = False
 
         
@@ -530,13 +402,11 @@ class SatelliteTracker:
                         send_message(client_sock, msg)
 
                     elif data.startswith("set_single_tuner"):
-                        self.mainSdr = self.singleSdr
                         self.sample_rate = 2e6
                         self.dualMode = False
                         send_message(client_sock, "set_single_tuner")
                         
                     elif data.startswith("set_dual_tuner"):
-                        self.mainSdr = self.dualSdr
                         self.sample_rate = 2e6
                         self.dualMode = True
                         send_message(client_sock, "set_dual_tuner")
