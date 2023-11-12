@@ -193,21 +193,24 @@ class SatelliteTracker:
                 if item == None:
                     self.stop_signal = True
                 _, rise_time, set_time, satellite = item
-                while self.local_timezone.localize(datetime.now()) < rise_time:
-                    print(self.local_timezone.localize(datetime.now()))
-                    print(rise_time)
-                    if self.stop_signal:
-                        print(f"Tracking of canceled before it began.")
-                        return  # Exit the method if stop signal is detected
-                    time.sleep(0.5)  # Sleep for short intervals to check for stop_signal frequently
+                # while self.local_timezone.localize(datetime.now()) < rise_time:
+                #     print(self.local_timezone.localize(datetime.now()))
+                #     print(rise_time)
+                #     if self.stop_signal:
+                #         print(f"Tracking of canceled before it began.")
+                #         return  # Exit the method if stop signal is detected
+                #     time.sleep(0.5)  # Sleep for short intervals to check for stop_signal frequently
 
                 try:
                     # Get next item, but don't wait forever. Timeout after 5 seconds, for example.
                     item = self.schedule.get(timeout=5)
                     
+
+
                 except queue.Empty:
                     # queue is empty and no item was retrieved in the given timeout.
-                    continue
+                    self.stop_signal = True
+                    break
 
                 _, rise_time, set_time, satellite = item
 
@@ -271,12 +274,10 @@ class SatelliteTracker:
             return "arduino not found"
 
     def record(self, satellite, rise_time, set_time):
-        if self.dualMode:
-            self.mainSdr = sdr.Device(self.dual_device_args)
-        else:
-            self.mainSdr = sdr.Device(self.single_device_args)
+
 
         total_time = (set_time - rise_time).seconds
+        total_time = 5
         if self.satellites_frequencies.get(satellite.name) is None or len (self.satellites_frequencies.get(satellite.name)) == 0:
             print(f"No frequencies for satellite {satellite.name}, defaulting to {self.default_frequency}")
             freq1 = self.default_frequency
@@ -289,7 +290,7 @@ class SatelliteTracker:
             
         self.stop_signal = False
 
-        gain = 30  # Gain in dB
+        gain = 30
 
 
 
@@ -301,7 +302,9 @@ class SatelliteTracker:
         buffer_size = 524288
         num_samples = int(self.sample_rate)*total_time
         iq_queue = queue.Queue(maxsize=100)
-        iq_queue2 = queue.Queue(maxsize=100)
+        if self.dualMode:
+            gain = 30
+            iq_queue2 = queue.Queue(maxsize=100)
 
         # total_bytes, used_bytes, free_bytes = shutil.disk_usage(DATA_BASE_DIR)
         used = get_size_of_directory(DATA_BASE_DIR)
@@ -317,27 +320,47 @@ class SatelliteTracker:
             return  # Exit the function if there isn't enough space
         
 
-
-
-
-
-        self.mainSdr.setSampleRate(sdr.SOAPY_SDR_RX, 0, self.sample_rate)
-        self.mainSdr.setFrequency(sdr.SOAPY_SDR_RX, 0, freq1)
-        self.mainSdr.setGain(sdr.SOAPY_SDR_RX, 0, gain)
-        stream0 = self.mainSdr.setupStream(sdr.SOAPY_SDR_RX, sdr.SOAPY_SDR_CF32)
-        self.mainSdr.activateStream(stream0)
-        if self.dualMode:
-            self.mainSdr.setSampleRate(sdr.SOAPY_SDR_RX, 1, self.sample_rate)
-            self.mainSdr.setFrequency(sdr.SOAPY_SDR_RX, 1, freq1)
-            self.mainSdr.setGain(sdr.SOAPY_SDR_RX, 1, gain)
-            stream1 = self.mainSdr.setupStream(sdr.SOAPY_SDR_RX, sdr.SOAPY_SDR_CF32)
-        
+        print("Starting loop")
         
 
+        while True:
+            try:
+                if self.dualMode:
+                    self.mainSdr = sdr.Device(self.dual_device_args)
+                else:
+                    self.mainSdr = sdr.Device(self.single_device_args)
+                try:
+                    print(str(self.mainSdr.listSampleRates(sdr.SOAPY_SDR_RX,0)))
+                except:
+                    print("error getting data")
+                print("created device")
+                self.mainSdr.setSampleRate(sdr.SOAPY_SDR_RX, 0, self.sample_rate)
+                print("setRate")
+                self.mainSdr.setFrequency(sdr.SOAPY_SDR_RX, 0, freq1)
+                print("setFrequency")
+                self.mainSdr.setGain(sdr.SOAPY_SDR_RX, 0, gain)
+                print("setGain")
+
+                stream0 = self.mainSdr.setupStream(sdr.SOAPY_SDR_RX, sdr.SOAPY_SDR_CF32)
+                print("setGain")
+                self.mainSdr.activateStream(stream0)
+                print("configured device")
+                if self.dualMode:
+                    self.mainSdr.setSampleRate(sdr.SOAPY_SDR_RX, 1, self.sample_rate)
+                    self.mainSdr.setFrequency(sdr.SOAPY_SDR_RX, 1, freq1)
+                    self.mainSdr.setGain(sdr.SOAPY_SDR_RX, 1, gain)
+                    stream1 = self.mainSdr.setupStream(sdr.SOAPY_SDR_RX, sdr.SOAPY_SDR_CF32)
+                    self.mainSdr.activateStream(stream1)
+                break
+            except:
+                print("Failed to initialize device, retrying")
+        print("devices initialized")
+        time.sleep(1)
         
         # Event to signal when to stop
         stop_event = threading.Event()
-        stop_event2 = threading.Event()
+        if self.dualMode:
+            stop_event2 = threading.Event()
         # Function to read from the SDR (Producer)
         def read_from_sdr(sdr, rx_stream, buffer_size, num_samples, iq_queue, stop_event):
             buff = np.empty(buffer_size, dtype=np.complex64)
@@ -351,7 +374,7 @@ class SatelliteTracker:
                     self.mainSdr.releaseReadBuffer(rx_stream, sr.ret)
                     
                 elif sr.ret == -1:
-                    print("--OVerflow occurred")
+                    print("Overflow occurred")
                     self.stop_signal = True
             print("Finished collecting samples")
         self.total_sample = 0
@@ -370,8 +393,8 @@ class SatelliteTracker:
                         self.total_sample += len(samples)
 
                         # Pickle the numpy array directly to avoid the memory overhead of extending a list
-  
-                        pickle.dump(samples, file)
+                        
+                        # pickle.dump(samples, file)
                     except queue.Empty:
                         print("Queue empty")
                         continue
@@ -381,8 +404,8 @@ class SatelliteTracker:
         consumer_thread = threading.Thread(target=process_iq_samples, args=(iq_queue, stop_event, 0))
 
         if self.dualMode:
-            producer_thread2 = threading.Thread(target=read_from_sdr, args=(self.mainSdr, stream1, buffer_size, num_samples, iq_queue2, stop_event))
-            consumer_thread2 = threading.Thread(target=process_iq_samples, args=(iq_queue2, stop_event, 1))
+            producer_thread2 = threading.Thread(target=read_from_sdr, args=(self.mainSdr, stream1, buffer_size, num_samples, iq_queue2, stop_event2))
+            consumer_thread2 = threading.Thread(target=process_iq_samples, args=(iq_queue2, stop_event2, 1))
 
 
         producer_thread.start()
@@ -398,7 +421,9 @@ class SatelliteTracker:
         stop_event.set()
         # Wait for the consumer to finish processing
         consumer_thread.join()
-        print("Extracted "+ str(self.total_sample)+" samples")
+        
+
+
         self.mainSdr.deactivateStream(stream0)
         self.mainSdr.closeStream(stream0)
 
@@ -408,12 +433,13 @@ class SatelliteTracker:
             stop_event2.set()
             # Wait for the consumer to finish processing
             consumer_thread2.join()
-            print("Extracted "+ str(self.total_sample)+" samples")
             self.mainSdr.deactivateStream(stream1)
             self.mainSdr.closeStream(stream1)
         
         self.mainSdr.close()
+        print("Extracted "+ str(self.total_sample)+" samples")
         self.recording = False
+
         
         
 
@@ -428,7 +454,7 @@ class SatelliteTracker:
    
         previous_azimuth, previous_elevation = None, None
 
-        while self.local_timezone.localize(datetime.now()) < set_time and self.stop_signal is False:
+        while self.local_timezone.localize(datetime.now()) < set_time and self.stop_signal is False and self.recording is True:
             azimuth, elevation = scheduler.get_azimuth_elevation(satellite, observer_location)
             
             # Check if this is the first iteration or if the difference in angle is greater than 1 degree
@@ -505,7 +531,7 @@ class SatelliteTracker:
 
                     elif data.startswith("set_single_tuner"):
                         self.mainSdr = self.singleSdr
-                        self.sample_rate = 10e6
+                        self.sample_rate = 2e6
                         self.dualMode = False
                         send_message(client_sock, "set_single_tuner")
                         
@@ -589,6 +615,7 @@ class SatelliteTracker:
                             client_sock.send("File not found".encode('utf-8'))
                         
                     elif data.startswith("start_tracking"):
+                        self.stop_signal = False
                         self.start_tracking()
                         send_message(client_sock, "Tracking started.")
 
