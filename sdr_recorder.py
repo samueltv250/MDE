@@ -58,18 +58,18 @@ class SDRRecorder:
             while samples_collected < num_samples:
                 with self.lock:
                     sr = self.device.readStream(self.streams[channel], [buff], len(buff))
-                    if sr.ret > 0:
-                        # pickle.dump(buff[:sr.ret], file)
-                        samples_collected += sr.ret
-                        print(sr.ret)
-                    elif sr.ret == sdr.SOAPY_SDR_TIMEOUT:
-                        logger.warning("Read stream timeout.")
-                    elif sr.ret == sdr.SOAPY_SDR_OVERFLOW:
-                        logger.warning("Overflow occurred.")
-                        break
-                    elif sr.ret < 0:
-                        logger.error(f"Stream error: {sr.ret}")
-                        break
+                if sr.ret > 0:
+                    # pickle.dump(buff[:sr.ret], file)
+                    samples_collected += sr.ret
+                    print(sr.ret)
+                elif sr.ret == sdr.SOAPY_SDR_TIMEOUT:
+                    logger.warning("Read stream timeout.")
+                elif sr.ret == sdr.SOAPY_SDR_OVERFLOW:
+                    logger.warning("Overflow occurred.")
+                    break
+                elif sr.ret < 0:
+                    logger.error(f"Stream error: {sr.ret}")
+                    break
         except Exception as e:
             logger.error(f"Failed to record from channel {channel}: {e}")
             raise
@@ -114,11 +114,11 @@ for dev in devices:
 
 
 
-if dual_device_args:
-    dual_tuner_recorder = SDRRecorder(dual_device_args, mode='dual')
-    print("Starting dual tuner recording...")
-    dual_tuner_recorder.start_recording(1.626e9, 30, 10)
+# if dual_device_args:
+#     dual_tuner_recorder = SDRRecorder(dual_device_args, mode='dual')
+#     print("Starting dual tuner recording...")
+#     dual_tuner_recorder.start_recording(1.626e9, 30, 10)
 
-# if single_device_args:
-#     single_tuner_recorder = SDRRecorder(single_device_args, mode='single')
-#     single_tuner_recorder.start_recording(1.626e9, 30, 120)
+if single_device_args:
+    single_tuner_recorder = SDRRecorder(single_device_args, mode='single')
+    single_tuner_recorder.start_recording(1.626e9, 30, 120)
