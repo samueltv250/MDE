@@ -12,8 +12,9 @@ from rtlsdr import RtlSdr
 import serial
 import gps
 import numpy as np
-import SoapySDR as sdr
-from sdr_recorder import SDRRecorder
+from sdr_recorder import SDRRecorder, sdr
+
+
 
 
 
@@ -181,12 +182,14 @@ class SatelliteTracker:
                 if item == None:
                     self.stop_signal = True
                 _, rise_time, set_time, satellite = item
-                while self.local_timezone.localize(datetime.now()) < rise_time:
+                # now = self.local_timezone.localize(datetime.now())
+                now = rise_time+ timedelta(minutes=1)
+                while now  < rise_time:
                     print("waiting")
-                    print(self.local_timezone.localize(datetime.now()))
+                    print(self.local_timezone.localize(datetime.now())+ timedelta(hours=2))
                     print(rise_time)
                     if self.stop_signal:
-                        print(f"Tracking of canceled before it began.")
+                        print(f"Tracking got canceled before it began.")
                         return  # Exit the method if stop signal is detected
                     time.sleep(0.5)  # Sleep for short intervals to check for stop_signal frequently
 
@@ -203,7 +206,7 @@ class SatelliteTracker:
 
                 _, rise_time, set_time, satellite = item
 
-                # Wait until rise time or until stop_signal is set
+
 
                 print(f"Tracking {satellite.name} from {rise_time} to {set_time}")
                 self.track_and_record_satellite(satellite, rise_time, set_time)
@@ -302,15 +305,16 @@ class SatelliteTracker:
             return  # Exit the function if there isn't enough space
         
 
-
-        if self.dualMode:
-            recorder = SDRRecorder(self.dual_device_args, mode='dual')
-        else:
-            recorder = SDRRecorder(self.single_device_args, mode='single')
-        recorder.start_recording(1.626e9, 30, 10)
-
-
-        self.recording = False
+        try:
+            if self.dualMode:
+                recorder = SDRRecorder(self.dual_device_args, mode='dual')
+            else:
+                recorder = SDRRecorder(self.single_device_args, mode='single')
+            recorder.start_recording(1.626e9, 30, 10)
+        except:
+            print("Error recording")
+            self.recording = False
+            self.stop_signal = True
 
         
         
