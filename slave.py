@@ -189,7 +189,7 @@ class SatelliteTracker:
                 # now = rise_time+ timedelta(minutes=1)
                 while self.local_timezone.localize(datetime.now())  < rise_time:
                     print("waiting")
-                    print(self.local_timezone.localize(datetime.now())+ timedelta(hours=2))
+                    print(self.local_timezone.localize(datetime.now()))
                     print(rise_time)
                     if self.stop_signal:
                         print(f"Tracking got canceled before it began.")
