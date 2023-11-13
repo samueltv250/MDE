@@ -120,7 +120,7 @@ class SatelliteTracker:
                 print("Unable to find Arduino port.")
                 self.arduino_found = False
         self.schedule = queue.Queue()
-
+        self.stop_recording_event = threading.Event()
         self.satellites = []
         self.satellites_frequencies = {}
         self.already_processed_satellites = []
@@ -133,7 +133,7 @@ class SatelliteTracker:
 
         self.topos = Topos(latitude_degrees=self.latitude, longitude_degrees=self.longitude, elevation_m=0)
         self.local_timezone = pytz.timezone(determine_timezone(self.latitude, self.longitude))
-
+        
         self.start_time = None
         self.end_time = None
 
@@ -172,18 +172,22 @@ class SatelliteTracker:
             self.tracking_thread.join()  # Wait for the thread to complete its execution
         
         self.stop_signal = True
+        self.stop_recording_event.set()
         self.recording = False
 
     def track_and_record_satellites_concurrently(self):
         try:
             print("Tracking started")
             while not self.stop_signal and self.schedule.qsize() > 0:
+    
+                if self.schedule.qsize() == 0:
+                    break
                 item = self.schedule.queue[0] if not self.schedule.empty() else None
                 if item == None:
                     self.stop_signal = True
                 _, rise_time, set_time, satellite = item
-                # now = self.local_timezone.localize(datetime.now())
-                now = rise_time+ timedelta(minutes=1)
+                now = self.local_timezone.localize(datetime.now())
+                # now = rise_time+ timedelta(minutes=1)
                 while now  < rise_time:
                     print("waiting")
                     print(self.local_timezone.localize(datetime.now())+ timedelta(hours=2))
@@ -192,6 +196,7 @@ class SatelliteTracker:
                         print(f"Tracking got canceled before it began.")
                         return  # Exit the method if stop signal is detected
                     time.sleep(0.5)  # Sleep for short intervals to check for stop_signal frequently
+
 
                 try:
                     # Get next item, but don't wait forever. Timeout after 5 seconds, for example.
@@ -284,7 +289,7 @@ class SatelliteTracker:
         gain = 30
 
 
-
+        self.stop_recording_event = threading.Event()
 
 
 
@@ -302,19 +307,21 @@ class SatelliteTracker:
             print(f"recording would exceed max space in drive, must clean drive to continue recording")
             self.recording = False
             self.stop_signal = True
+            self.stop_recording_event.set()
             return  # Exit the function if there isn't enough space
-        
 
         try:
             if self.dualMode:
-                recorder = SDRRecorder(self.dual_device_args, mode='dual')
+                recorder = SDRRecorder(self.dual_device_args, sat_name = satellite.name, mode='dual', frequency = self.default_frequency, stop_event = self.stop_recording_event)
             else:
-                recorder = SDRRecorder(self.single_device_args, mode='single')
-            recorder.start_recording(1.626e9, 30, 10)
+                recorder = SDRRecorder(self.single_device_args, sat_name = satellite.name, mode='single', frequency = self.default_frequency, stop_event = self.stop_recording_event)
+            recorder.start_recording(30, total_time)
+            recorder.stop_recording()
         except:
             print("Error recording")
             self.recording = False
             self.stop_signal = True
+
 
         
         

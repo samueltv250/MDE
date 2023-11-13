@@ -131,3 +131,35 @@ def load_tle_from_string(tle_string):
     
     return satellites
 
+if __name__ == "__main__":
+    # tle_file = 'satellites.tle'
+
+    # satellites = load.tle_file(tle_file)
+
+
+    satellites = load.tle_file("satellites.tle")
+    satellites_dict = {sat.name: sat for sat in satellites}
+    specific_satellite = satellites_dict.get("ISS (ZARYA)")  # Replace with the desired satellite name
+
+    latitude, longitude  = 50.21573581795237, 8.26381093515386
+    local_timezone = pytz.timezone(determine_timezone(latitude, longitude))
+    start_time = local_timezone.localize(datetime(2023, 11, 12, 0, 0))
+    end_time = local_timezone.localize(datetime(2023, 11, 14, 0, 0))
+
+    print(f"Timezone: {local_timezone}")
+
+    # Using wgs84 for defining observer's position:
+    observer_location = wgs84.latlon(latitude, longitude)
+
+    windows = get_all_viewing_windows(specific_satellite, start_time, end_time, observer_location)
+    
+    az, el = get_azimuth_elevation(specific_satellite, observer_location)
+
+    print(f"Satellite: {specific_satellite.name}")
+    print(f"Azimuth: {az}")
+    print(f"Elevation: {el}")
+    # results = get_sequential_tracking_schedule(satellites, start_time, end_time, latitude, longitude, topos)
+    # for res in results:
+    #     print(f"Satellite: {res[0]}")
+    #     print(f"Viewing Time: From {res[1]} to {res[2]}")
+    #     print(f"TLE:\n{res[3]}\n")

@@ -97,8 +97,8 @@ class WiFiManager:
             self.get_file(command, 104857600)
             end_time = time.time()
             print(f"Time taken to receive file: {end_time - start_time} seconds")
-            
-        elif command in ["clear_schedule", "start_tracking", "calibrate", "stop_tracking", "device_get", "set_single_tuner", "set_dual_tuner"]:
+        
+        elif command in ["clear_schedule", "start_tracking", "calibrate", "stop_tracking", "device_get", "set_single_tuner", "set_dual_tuner", "setCord"]:
             self.send_and_print(command)
         elif command.startswith("move"):
             self.send_and_print(command)
@@ -156,7 +156,7 @@ class WiFiManager:
         tracking_status = response["tracking"]
         time_zone = datetime.datetime.now(datetime.timezone.utc).astimezone().tzname()
 
-        print(f"Current Time on Raspberry Pi: {current_time.strftime('%Y-%m-%d %H:%M:%S')} {time_zone}\n")
+        print(f"Current Time on Raspberry Pi: {current_time.strftime('%Y-%m-%d %H:%M:%S')} {current_time.tzinfo.zone}\n")
         print(f"Tracking Status: {'On' if tracking_status else 'Off'}\n")
         print(f"Recording Status: {'On' if is_recording else 'Off'}\n")
         print(f"Using directory: {used_dir}\n")
@@ -171,13 +171,15 @@ class WiFiManager:
         print("\nSchedule:")
         for satellite in modified_schedule:
             print(f"- Satellite Name: {satellite[0]}")
-            print(f"  Rise Time: {satellite[1]}")
-            print(f"  Set Time: {satellite[2]}\n")
+            print(f"  Rise Time: {satellite[1].strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"  Set Time: {satellite[2].strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"  Timezone {satellite[2].tzinfo.zone}\n")
         print("Processed Schedule:")
         for satellite in modified_processed_satellites:
             print(f"- Satellite Name: {satellite[0]}")
-            print(f"  Rise Time: {satellite[1]}")
-            print(f"  Set Time: {satellite[2]}\n")
+            print(f"  Rise Time: {satellite[1].strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"  Set Time: {satellite[2].strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"  Timezone {satellite[2].tzinfo.zone}\n")
 
     def get_file(self, command, chunck_size = 4096):
         file_path = command.split(" ", 1)[1]
