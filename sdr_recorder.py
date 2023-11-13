@@ -74,6 +74,51 @@ class SDRRecorder:
             logger.error(f"Failed to record from channel {channel}: {e}")
             raise
 
+    def record_dual_channel(self, duration_seconds):
+        num_samples = int(self.sample_rate * duration_seconds)
+        buff = np.empty(self.BUFFER_SIZE, dtype=np.complex64)
+        buff1 = np.empty(self.BUFFER_SIZE, dtype=np.complex64)
+        samples_collected = 0
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        filename1 = f"SDR_Channel0_{timestamp}.pkl"
+        filename2 = f"SDR_Channel1_{timestamp}.pkl"
+        file_path1 = os.path.join(self.directory, filename1)
+        file_path2 = os.path.join(self.directory, filename1)
+
+        try:
+            # with open(file_path, 'ab') as file:
+            while samples_collected < num_samples:
+                with self.lock:
+                    sr1 = self.device.readStream(self.streams[0], [buff], len(buff))
+                    sr2 = self.device.readStream(self.streams[1], [buff1], len(buff1))
+                if sr1.ret > 0:
+                    # pickle.dump(buff[:sr.ret], file)
+                    samples_collected += sr1.ret
+                    print(sr1.ret)
+                elif sr1.ret == sdr.SOAPY_SDR_TIMEOUT:
+                    logger.warning("Read stream timeout.")
+                elif sr1.ret == sdr.SOAPY_SDR_OVERFLOW:
+                    logger.warning("Overflow occurred.")
+                    break
+                elif sr1.ret < 0:
+                    logger.error(f"Stream error: {sr1.ret}")
+                    break
+                if sr2.ret > 0:
+                    # pickle.dump(buff[:sr.ret], file)
+    
+                    print(sr2.ret)
+                elif sr2.ret == sdr.SOAPY_SDR_TIMEOUT:
+                    logger.warning("Read stream timeout.")
+                elif sr2.ret == sdr.SOAPY_SDR_OVERFLOW:
+                    logger.warning("Overflow occurred.")
+                    break
+                elif sr2.ret < 0:
+                    logger.error(f"Stream error: {sr2.ret}")
+                    break
+        except Exception as e:
+            logger.error(f"Failed to record from channel : {e}")
+            raise
+
     def start_recording(self, frequency, gain, duration_seconds):
         threads = []
         try:
@@ -82,19 +127,21 @@ class SDRRecorder:
                 self.activate_stream(channel)
                 thread = threading.Thread(target=self.record, args=(channel, duration_seconds))
                 threads.append(thread)
-            for thread in threads:
                 thread.start()
+                
             for thread in threads:
                 thread.join()
+
         finally:
             # Deactivate and close streams after recording
             for channel in range(len(self.streams)):
                 if self.streams[channel] is not None:
                     with self.lock:
+                        print("Closing")
                         self.device.deactivateStream(self.streams[channel])
                         self.device.closeStream(self.streams[channel])
                         self.streams[channel] = None
-                        self.device.close()
+            self.device.close()
             self.device = None  # Release the device
 
 
@@ -114,11 +161,11 @@ for dev in devices:
 
 
 
-# if dual_device_args:
-#     dual_tuner_recorder = SDRRecorder(dual_device_args, mode='dual')
-#     print("Starting dual tuner recording...")
-#     dual_tuner_recorder.start_recording(1.626e9, 30, 10)
+if dual_device_args:
+    dual_tuner_recorder = SDRRecorder(dual_device_args, mode='dual')
+    print("Starting dual tuner recording...")
+    dual_tuner_recorder.start_recording(1.626e9, 30, 10)
 
-if single_device_args:
-    single_tuner_recorder = SDRRecorder(single_device_args, mode='single')
-    single_tuner_recorder.start_recording(1.626e9, 30, 120)
+# if single_device_args:
+#     single_tuner_recorder = SDRRecorder(single_device_args, mode='single')
+#     single_tuner_recorder.start_recording(1.626e9, 30, 120)
