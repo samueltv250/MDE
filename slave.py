@@ -156,8 +156,8 @@ class SatelliteTracker:
             elif "Dual Tuner" in dev["label"]:
                 self.dual_device_args = dev
    
-        self.sample_rate = 2e6
-        self.dualMode = True
+        self.sample_rate = 10e6
+        self.dualMode = False
 
 
     def start_tracking(self):
@@ -186,9 +186,8 @@ class SatelliteTracker:
                 if item == None:
                     self.stop_signal = True
                 _, rise_time, set_time, satellite = item
-                now = self.local_timezone.localize(datetime.now())
                 # now = rise_time+ timedelta(minutes=1)
-                while now  < rise_time:
+                while self.local_timezone.localize(datetime.now())  < rise_time:
                     print("waiting")
                     print(self.local_timezone.localize(datetime.now())+ timedelta(hours=2))
                     print(rise_time)
@@ -413,7 +412,7 @@ class SatelliteTracker:
                         send_message(client_sock, msg)
 
                     elif data.startswith("set_single_tuner"):
-                        self.sample_rate = 2e6
+                        self.sample_rate = 10e6
                         self.dualMode = False
                         send_message(client_sock, "set_single_tuner")
                         
