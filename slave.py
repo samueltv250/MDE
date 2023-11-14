@@ -186,7 +186,7 @@ class SatelliteTracker:
                 if item == None:
                     self.stop_signal = True
                 _, rise_time, set_time, satellite = item
-                # now = rise_time+ timedelta(minutes=1)
+
                 while self.local_timezone.localize(datetime.now())  < rise_time:
                     print("waiting")
                     print(self.local_timezone.localize(datetime.now()))
@@ -213,7 +213,7 @@ class SatelliteTracker:
 
 
                 print(f"Tracking {satellite.name} from {rise_time} to {set_time}")
-                self.track_and_record_satellite(satellite, rise_time, set_time)
+                self.track_and_record_satellite(satellite, self.local_timezone.localize(datetime.now()), set_time)
 
                 # Add the satellite to the list of already processed satellites
                 self.already_processed_satellites.append(item)
@@ -318,8 +318,9 @@ class SatelliteTracker:
             recorder.stop_recording()
         except:
             print("Error recording")
-            self.recording = False
             self.stop_signal = True
+        finally:
+            self.recording = False
 
 
         
@@ -346,6 +347,7 @@ class SatelliteTracker:
                 previous_azimuth, previous_elevation = azimuth, elevation
             
             time.sleep(0.1)
+        self.recording_thread.join()
             
     
 
