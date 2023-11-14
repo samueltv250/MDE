@@ -23,6 +23,7 @@ DATA_BASE_DIR = "/home/dietpi/Desktop/MDE/data_base"
 USB_DIR = "/mnt/usbdrive"
 
 
+
 def get_size_of_directory(directory_path):
     total_size = 0
     for dirpath, dirnames, filenames in os.walk(directory_path):
@@ -350,19 +351,15 @@ class SatelliteTracker:
         self.recording_thread.join()
             
     
-
-
-    def rec_on_exit(self, ip_address='0.0.0.0', port=22325):
+    def setup_server_socket(self, ip_address, port):
         server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Set the SO_REUSEADDR option
-        
-        server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 32 * 1024)
-        server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 32 * 1024)
-
-        
-        
+        server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server_sock.bind((ip_address, port))
         server_sock.listen(1)
+        return server_sock
+
+    def rec_on_exit(self, ip_address='0.0.0.0', port=22325):
+        server_sock = self.setup_server_socket(ip_address, port)
         while True:
             print(f"Waiting for connection on IP {ip_address} port {port}")
             client_sock = None
@@ -387,6 +384,7 @@ class SatelliteTracker:
                         send_message(client_sock, "Rebooting...")
                         server_sock.close()
                         return
+                    
                     elif data.lower().startswith("move"):
                         parts = data.split(" ")
                         command = parts[0]
@@ -409,6 +407,7 @@ class SatelliteTracker:
 
 
                         send_message(client_sock, "Finished setting datetime")
+                        
                     elif data.startswith("calibrate"):
                         msg = self.calibrate()
                         send_message(client_sock, msg)
@@ -518,6 +517,8 @@ class SatelliteTracker:
                         print("queue is empty!")
 
             except socket.error as e:
+                server_sock.close()
+                server_sock = self.setup_server_socket(ip_address, port)
                 print(f"Socket error: {e}")
                 time.sleep(1)
             except Exception as e:
