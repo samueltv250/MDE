@@ -23,7 +23,6 @@ DATA_BASE_DIR = "/home/dietpi/Desktop/MDE/data_base"
 USB_DIR = "/mnt/usbdrive"
 
 
-
 def get_size_of_directory(directory_path):
     total_size = 0
     for dirpath, dirnames, filenames in os.walk(directory_path):
@@ -44,7 +43,9 @@ def find_arduino_port():
         for device in ["ttyUSB", "ttyACM"]:
             if device in devices:
                 arduino_port = os.popen(f'ls /dev/ | grep {device}').read().split("\n")[0]
-                return f"/dev/{arduino_port}"
+                port = f"/dev/{arduino_port}"
+                subprocess.run(["sudo", "chown", "dietpi:dietpi", port])
+                return port
         return None
     except Exception as e:
         print(f"Error finding Arduino port: {e}")
@@ -343,7 +344,9 @@ class SatelliteTracker:
             
             # Check if this is the first iteration or if the difference in angle is greater than 1 degree
             if previous_azimuth is None or abs(azimuth - previous_azimuth) > 1 or abs(elevation - previous_elevation) > 1:
-                self.move_to_position(azimuth, elevation)
+                
+                if azimuth >= 0 and  azimuth<= 450 and elevation >= 0 and elevation<=180:
+                    self.move_to_position(azimuth, elevation)
                 # Update the previous azimuth and elevation
                 previous_azimuth, previous_elevation = azimuth, elevation
             
@@ -391,7 +394,7 @@ class SatelliteTracker:
                         azimuth = float(parts[1])
                         elevation = float(parts[2])
                         msg = self.move_to_position(azimuth, elevation)
-                        send_message(client_sock, msg)
+                        send_message(client_sock, "Moved")
                         
                     elif data.startswith("calibrate_date_time"):
                         send_message(client_sock, "Waiting on date time info")
