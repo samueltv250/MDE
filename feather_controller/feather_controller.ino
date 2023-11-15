@@ -116,9 +116,19 @@ void calibrate() {
 
 void moveMount(float desiredAzimuth, float desiredElevation) {
   const int stepDelay = 100;
+  int noMovementCounterAzimuth = 0;
+  int noMovementCounterElevation = 0;
   
+  float previousAzimuth = currentAzimuth;
+  float previousElevation = currentElevation;
+
   // For Azimuth
   while (fabs(currentAzimuth - desiredAzimuth) > 0.1) {
+    if (noMovementCounterAzimuth > 10) {
+      Serial.println("Error: No movement in Azimuth detected for 10 iterations");
+      return; // Early exit if no movement is detected
+    }
+    
     if (currentAzimuth < desiredAzimuth) {
       digitalWrite(pinRight, HIGH);
       delay(stepDelay);
@@ -129,10 +139,23 @@ void moveMount(float desiredAzimuth, float desiredElevation) {
       digitalWrite(pinLeft, LOW);
     }
     currentAzimuth = readAzimuth(); // Update position after movement
+    
+    // Check if there is no movement
+    if (currentAzimuth == previousAzimuth) {
+      noMovementCounterAzimuth++;
+    } else {
+      noMovementCounterAzimuth = 0; // Reset counter if there is movement
+    }
+    previousAzimuth = currentAzimuth;
   }
   
   // For Elevation
   while (fabs(currentElevation - desiredElevation) > 0.1) {
+    if (noMovementCounterElevation > 10) {
+      Serial.println("Error");
+      return; // Early exit if no movement is detected
+    }
+    
     if (currentElevation < desiredElevation) {
       digitalWrite(pinUp, HIGH);
       delay(stepDelay);
@@ -142,9 +165,20 @@ void moveMount(float desiredAzimuth, float desiredElevation) {
       delay(stepDelay);
       digitalWrite(pinDown, LOW);
     }
-    currentElevation = readElevation();
+    currentElevation = readElevation(); // Update position after movement
+
+    // Check if there is no movement
+    if (currentElevation == previousElevation) {
+      noMovementCounterElevation++;
+    } else {
+      noMovementCounterElevation = 0; // Reset counter if there is movement
+    }
+    previousElevation = currentElevation;
   }
-  Serial.println("Moved");
+  
+  if (noMovementCounterAzimuth <= 10 && noMovementCounterElevation <= 10) {
+    Serial.println("Moved");
+  }
 }
 
 // The read functions now return float values and map to a float range
