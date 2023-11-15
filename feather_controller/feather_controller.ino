@@ -125,7 +125,7 @@ void moveMount(float desiredAzimuth, float desiredElevation) {
   // For Azimuth
   while (fabs(currentAzimuth - desiredAzimuth) > 0.1) {
     if (noMovementCounterAzimuth > 10) {
-      Serial.println("Error: No movement in Azimuth detected for 10 iterations");
+      Serial.println("Error");
       return; // Early exit if no movement is detected
     }
     
