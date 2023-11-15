@@ -118,7 +118,7 @@ void moveMount(float desiredAzimuth, float desiredElevation) {
   const int stepDelay = 100;
   
   // For Azimuth
-  while (fabs(currentAzimuth - desiredAzimuth) > 1) {
+  while (fabs(currentAzimuth - desiredAzimuth) > 0.1) {
     if (currentAzimuth < desiredAzimuth) {
       digitalWrite(pinRight, HIGH);
       delay(stepDelay);
@@ -132,7 +132,7 @@ void moveMount(float desiredAzimuth, float desiredElevation) {
   }
   
   // For Elevation
-  while (fabs(currentElevation - desiredElevation) > 0.01) {
+  while (fabs(currentElevation - desiredElevation) > 0.1) {
     if (currentElevation < desiredElevation) {
       digitalWrite(pinUp, HIGH);
       delay(stepDelay);
