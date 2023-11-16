@@ -1,9 +1,11 @@
 import time
 import serial
 import adafruit_gps
+import subprocess
 
 def init_gps():
     """Initialize the GPS module and return the GPS instance."""
+    subprocess.run(["sudo", "chown", "dietpi:dietpi", "/dev/ttyS0"])
     uart = serial.Serial(
         port='/dev/ttyS0',
         baudrate=9600,

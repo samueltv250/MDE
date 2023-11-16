@@ -112,7 +112,7 @@ def list_files(directory):
 
 class SatelliteTracker:
     def __init__(self, serial_port=None, baudrate=9600):
-        # self.gps = gps.init_gps()   # Initialize the GPS module
+        self.gps = gps.init_gps()   # Initialize the GPS module
         self.arduino_found = True
         time.sleep(5) #give time to initialize
         if serial_port is None:
@@ -130,8 +130,8 @@ class SatelliteTracker:
         self.stop_signal = True
         self.default_frequency = 1.626e9
         # Placeholder for gps module
-        # self.latitude, self.longitude = gps.get_coordinates(self.gps)
-        self.latitude, self.longitude = 37.229572, -80.413940
+        self.latitude, self.longitude = gps.get_coordinates(self.gps)
+        # self.latitude, self.longitude = 37.229572, -80.413940
 
         self.topos = Topos(latitude_degrees=self.latitude, longitude_degrees=self.longitude, elevation_m=0)
         self.local_timezone = pytz.timezone(determine_timezone(self.latitude, self.longitude))
