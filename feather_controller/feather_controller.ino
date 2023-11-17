@@ -123,11 +123,7 @@ void moveMount(float desiredAzimuth, float desiredElevation) {
   float previousElevation = currentElevation;
 
   // For Azimuth
-  while (fabs(currentAzimuth - desiredAzimuth) > 0.1) {
-    if (noMovementCounterAzimuth > 10) {
-      Serial.println("Error");
-      return; // Early exit if no movement is detected
-    }
+  while (fabs(currentAzimuth - desiredAzimuth) > 0.1 && noMovementCounterAzimuth <= 10) {
     
     if (currentAzimuth < desiredAzimuth) {
       digitalWrite(pinRight, HIGH);
@@ -150,11 +146,7 @@ void moveMount(float desiredAzimuth, float desiredElevation) {
   }
   
   // For Elevation
-  while (fabs(currentElevation - desiredElevation) > 0.1) {
-    if (noMovementCounterElevation > 10) {
-      Serial.println("Error");
-      return; // Early exit if no movement is detected
-    }
+  while (fabs(currentElevation - desiredElevation) > 0.1 && noMovementCounterElevation <= 10) {
     
     if (currentElevation < desiredElevation) {
       digitalWrite(pinUp, HIGH);
@@ -176,8 +168,11 @@ void moveMount(float desiredAzimuth, float desiredElevation) {
     previousElevation = currentElevation;
   }
   
-  if (noMovementCounterAzimuth <= 10 && noMovementCounterElevation <= 10) {
+  if (noMovementCounterAzimuth <= 10 || noMovementCounterElevation <= 10) {
     Serial.println("Moved");
+  }
+  else{
+    Serial.println("Error");
   }
 }
 
