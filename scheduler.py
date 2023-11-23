@@ -2,8 +2,23 @@ from skyfield.api import Topos, load, EarthSatellite, wgs84
 from datetime import datetime
 import pytz
 from timezonefinder import TimezoneFinder
+import os
+import logging
+
 
 ts = load.timescale()
+DATA_BASE_DIR = "/home/dietpi/Desktop/MDE/data_base"
+
+USB_DIR = "/mnt/usbdrive"
+
+if os.path.isdir(USB_DIR):
+    DATA_BASE_DIR = USB_DIR
+
+
+log_path = os.path.join(DATA_BASE_DIR, "scheduler.log")
+
+logging.basicConfig(level=logging.INFO, filename=log_path, filemode='a', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def determine_timezone(latitude, longitude):
     tf = TimezoneFinder()
@@ -13,8 +28,10 @@ def get_all_viewing_windows(satellite, start_time, end_time, observer_location):
     # This function was tested with publicly available tracking software and the results match.
     # Software link: https://dl2rum.de/rotor/docs/en/pages/WinSats.html
     if start_time.tzinfo is None or start_time.tzinfo.utcoffset(start_time) is None:
+        logger.error("start_time must be timezone-aware")
         raise ValueError("start_time must be timezone-aware")
     if end_time.tzinfo is None or end_time.tzinfo.utcoffset(end_time) is None:
+        logger.error("end_time must be timezone-aware")
         raise ValueError("end_time must be timezone-aware")
 
     start_time_utc = start_time.astimezone(pytz.utc)
@@ -40,7 +57,7 @@ def get_all_viewing_windows(satellite, start_time, end_time, observer_location):
 
     for window in windows:
         print(f"Viewing window for {satellite.name}: from {window[0].strftime('%Y-%m-%d %H:%M:%S')} to {window[1].strftime('%Y-%m-%d %H:%M:%S')} in timezone {window[0].tzinfo.zone}")
-
+        logger.info(f"Viewing window for {satellite.name}: from {window[0].strftime('%Y-%m-%d %H:%M:%S')} to {window[1].strftime('%Y-%m-%d %H:%M:%S')} in timezone {window[0].tzinfo.zone}")
     return windows
 
 
@@ -143,23 +160,24 @@ if __name__ == "__main__":
 
     latitude, longitude  = 50.21573581795237, 8.26381093515386
     local_timezone = pytz.timezone(determine_timezone(latitude, longitude))
-    start_time = local_timezone.localize(datetime(2023, 11, 12, 0, 0))
-    end_time = local_timezone.localize(datetime(2023, 11, 14, 0, 0))
+    start_time = local_timezone.localize(datetime(2023, 11, 17, 0, 0))
+    end_time = local_timezone.localize(datetime(2023, 11, 21, 0, 0))
 
     print(f"Timezone: {local_timezone}")
 
     # Using wgs84 for defining observer's position:
     observer_location = wgs84.latlon(latitude, longitude)
 
-    windows = get_all_viewing_windows(specific_satellite, start_time, end_time, observer_location)
+    # windows = get_all_viewing_windows(specific_satellite, start_time, end_time, observer_location)
     
     az, el = get_azimuth_elevation(specific_satellite, observer_location)
 
     print(f"Satellite: {specific_satellite.name}")
     print(f"Azimuth: {az}")
     print(f"Elevation: {el}")
-    # results = get_sequential_tracking_schedule(satellites, start_time, end_time, latitude, longitude, topos)
-    # for res in results:
-    #     print(f"Satellite: {res[0]}")
-    #     print(f"Viewing Time: From {res[1]} to {res[2]}")
-    #     print(f"TLE:\n{res[3]}\n")
+    topos = Topos(latitude_degrees=latitude, longitude_degrees=longitude, elevation_m=0)
+    results = get_sequential_tracking_schedule(satellites, start_time, end_time, topos)
+    for res in results:
+        print(f"Satellite: {res[0]}")
+        print(f"Viewing Time: From {res[1]} to {res[2]}")
+        print(f"TLE:\n{res[3]}\n")

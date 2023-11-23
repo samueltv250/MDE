@@ -72,8 +72,7 @@ void calibrate() {
 
 
   azimuthMin = get_readings(pinStatusAzimuth);
-  Serial.print("Azimuth Min: ");
-  Serial.println(azimuthMin);
+
 
   digitalWrite(pinRight, HIGH);
   delay(80000);
@@ -82,8 +81,6 @@ void calibrate() {
   azimuthMax = get_readings(pinStatusAzimuth);
 
 
-  Serial.print("Azimuth Max: ");
-  Serial.println(azimuthMax);
 
 
   digitalWrite(pinUp, HIGH);
@@ -92,26 +89,14 @@ void calibrate() {
 
   elevationMax = get_readings(pinStatusElevation);
 
-  Serial.print("Elevation Max: ");
-  Serial.println(elevationMax);
 
   digitalWrite(pinDown, HIGH);
   delay(80000);
   digitalWrite(pinDown, LOW);
   
   elevationMin = get_readings(pinStatusElevation);
-  Serial.print("Elevation Min: ");
-  Serial.println(elevationMin);
-
-
-  Serial.print("Azimuth Min: ");
-  Serial.print(azimuthMin);
-  Serial.print(", Azimuth Max: ");
-  Serial.print(azimuthMax);
-  Serial.print(", Elevation Min: ");
-  Serial.print(elevationMin);
-  Serial.print(", Elevation Max: ");
-  Serial.println(elevationMax);
+ 
+  Serial.println("Finished calibrating");
 }
 
 void moveMount(float desiredAzimuth, float desiredElevation) {

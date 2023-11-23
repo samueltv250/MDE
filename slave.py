@@ -12,7 +12,7 @@ from rtlsdr import RtlSdr
 import serial
 import gps
 import numpy as np
-from sdr_recorder import SDRRecorder, sdr
+from sdr_recorder import SDRRecorder, sdr, logging
 
 
 
@@ -21,6 +21,7 @@ from sdr_recorder import SDRRecorder, sdr
 DATA_BASE_DIR = "/home/dietpi/Desktop/MDE/data_base"
 
 USB_DIR = "/mnt/usbdrive"
+
 
 
 def get_size_of_directory(directory_path):
@@ -162,6 +163,13 @@ class SatelliteTracker:
         self.dualMode = False
 
 
+
+        log_path = os.path.join(DATA_BASE_DIR, "slave.log")
+
+        logging.basicConfig(level=logging.INFO, filename=log_path, filemode='a', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        self.logger = logging.getLogger(__name__)
+
+
     def start_tracking(self):
         """Starts the tracking process in a new thread."""
         self.stop_signal = False
@@ -195,6 +203,7 @@ class SatelliteTracker:
                     print(rise_time)
                     if self.stop_signal:
                         print(f"Tracking got canceled before it began.")
+                        self.logger.warning("Tracking got canceled before it began.")
                         return  # Exit the method if stop signal is detected
                     time.sleep(0.5)  # Sleep for short intervals to check for stop_signal frequently
 
@@ -220,13 +229,15 @@ class SatelliteTracker:
                 # Add the satellite to the list of already processed satellites
                 self.already_processed_satellites.append(item)
         except Exception as e:
-            print("Error occured during tracking: {e}")
+            print(f"Error occurred during tracking: {e}")
+
         finally:
             self.stop_signal = True
 
 
     def create_schedule(self):
         print(f"Creating schedule")
+        self.logger.info("Creating schedule.")
              # Getting the current UTC time
         old_schedule = []
         while not self.schedule.empty():
@@ -239,6 +250,7 @@ class SatelliteTracker:
         self.satellites = []
         
         print(f"Schedule created")
+        self.logger.info("Schedule created")
         return new_schedule
 
     
@@ -255,6 +267,7 @@ class SatelliteTracker:
                     return True
                 elif "Error" in response:  # Adjust this condition based on the possible error messages from the Feather
                     print("Error:", response)
+                    self.logger.error("Error:"+str(response))
                     return False
         else:
             return False
@@ -277,6 +290,7 @@ class SatelliteTracker:
         total_time = (set_time - rise_time).seconds
         if self.satellites_frequencies.get(satellite.name) is None or len (self.satellites_frequencies.get(satellite.name)) == 0:
             print(f"No frequencies for satellite {satellite.name}, defaulting to {self.default_frequency}")
+            self.logger.info(f"No frequencies for satellite {satellite.name}, defaulting to {self.default_frequency}")
             freq1 = self.default_frequency
         elif len(self.satellites_frequencies.get(satellite.name)) == 1:
             freq1 = self.satellites_frequencies[satellite.name][0]
@@ -304,6 +318,7 @@ class SatelliteTracker:
         theoretical_recording_size = (self.sample_rate * bytes_per_sample * total_time) / (1024**3)
         projected_used_space = theoretical_recording_size + used
         print("Theoretical space used: "+str(theoretical_recording_size))
+        self.logger.info("Theoretical space used: "+str(theoretical_recording_size))
         if projected_used_space > 120:
             print(f"recording would exceed max space in drive, must clean drive to continue recording")
             self.recording = False
@@ -313,13 +328,14 @@ class SatelliteTracker:
 
         try:
             if self.dualMode:
-                recorder = SDRRecorder(self.dual_device_args, sat_name = satellite.name, mode='dual', frequency = self.default_frequency, stop_event = self.stop_recording_event)
+                recorder = SDRRecorder(self.dual_device_args, sat_name = satellite.name, mode='dual', frequency = freq1, stop_event = self.stop_recording_event)
             else:
-                recorder = SDRRecorder(self.single_device_args, sat_name = satellite.name, mode='single', frequency = self.default_frequency, stop_event = self.stop_recording_event)
+                recorder = SDRRecorder(self.single_device_args, sat_name = satellite.name, mode='single', frequency = freq1, stop_event = self.stop_recording_event)
             recorder.start_recording(30, total_time)
             recorder.stop_recording()
         except:
             print("Error recording")
+            self.logger.error("Error recording")
             self.stop_signal = True
         finally:
             self.recording = False
@@ -369,6 +385,7 @@ class SatelliteTracker:
             try:
                 client_sock, client_info = server_sock.accept()
                 print("Accepted connection from", client_info)
+                self.logger.info("Accepted connection from" + str(client_info))
                 while True:
                     data = receive_full_message(client_sock)
                     if not data:
@@ -523,9 +540,11 @@ class SatelliteTracker:
                 server_sock.close()
                 server_sock = self.setup_server_socket(ip_address, port)
                 print(f"Socket error: {e}")
+                self.logger.error(f"Socket error: {e}")
                 time.sleep(1)
             except Exception as e:
                 print(f"An unexpected error occurred: {e}")
+                self.logger.error(f"An unexpected error occurred: {e}")
             finally:
                 if client_sock:
                     client_sock.close()

@@ -18,8 +18,6 @@ def align_buffer(byte_data, block_size=131072):
 
 
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 DATA_BASE_DIR = "/mnt/usbdrive"
 
@@ -40,6 +38,13 @@ class SDRRecorder:
         self.producer_threads = []
         self.consumer_threads = []
         self.stop_event = stop_event
+
+
+        log_path = os.path.join(self.directory, "sdr_recorder.log")
+
+        logging.basicConfig(level=logging.INFO, filename=log_path, filemode='a', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        self.logger = logging.getLogger(__name__)
+
 
     def setup_device(self, channel, frequency, gain):
         with self.lock:
@@ -70,11 +75,11 @@ class SDRRecorder:
                         print("queue is full")
                 samples_collected += sr.ret
             elif sr.ret == sdr.SOAPY_SDR_TIMEOUT:
-                logger.warning("Read stream timeout.")
+                self.logger.warning("Read stream timeout.")
             elif sr.ret == sdr.SOAPY_SDR_OVERFLOW:
-                logger.warning("Overflow occurred.")
+                self.logger.warning("Overflow occurred.")
             elif sr.ret < 0:
-                logger.error(f"Stream error: {sr.ret}")
+                self.logger.error(f"Stream error: {sr.ret}")
 
         # Signal the consumer that the production is done
         queue.put(None)
@@ -82,7 +87,7 @@ class SDRRecorder:
 
     def consumer(self, channel, queue):
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        filename = f"{self.sat_name}_Frequency{self.frequency}_Channel{channel}_{timestamp}.dat"
+        filename = f"{self.sat_name}_Frequency{self.frequency}_SampleRate{self.sample_rate}_Channel{channel}_{timestamp}.dat"
         file_path = os.path.join(self.directory, filename)
         block_size = 131072  
         
