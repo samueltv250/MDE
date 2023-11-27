@@ -364,11 +364,12 @@ class SatelliteTracker:
                 if azimuth >= 0 and  azimuth<= 450 and elevation >= 0 and elevation<=180:
                     self.move_to_position(azimuth, elevation)
                     self.logger.warning("Moved to az= " + str(azimuth)+", el= "+str(elevation))
+                    # Update the previous azimuth and elevation
+                    previous_azimuth, previous_elevation = azimuth, elevation
                 else:
                     self.logger.warning("Waiting on az el to be above the horizon. az= " + str(azimuth)+", el= "+str(elevation))
                     
-                    # Update the previous azimuth and elevation
-                    previous_azimuth, previous_elevation = azimuth, elevation
+
             
             time.sleep(0.1)
         self.recording_thread.join()
