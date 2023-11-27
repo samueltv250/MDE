@@ -63,7 +63,6 @@ float get_readings(int pin){
   return sum / numReadings;
 }
 
-
 void calibrate() {
 
   digitalWrite(pinLeft, HIGH);
@@ -99,6 +98,7 @@ void calibrate() {
   Serial.println("Finished calibrating");
 }
 
+
 void moveMount(float desiredAzimuth, float desiredElevation) {
   const int stepDelay = 100;
   int noMovementCounterAzimuth = 0;
@@ -107,8 +107,13 @@ void moveMount(float desiredAzimuth, float desiredElevation) {
   float previousAzimuth = currentAzimuth;
   float previousElevation = currentElevation;
 
+
+  currentElevation = readElevation();
+  currentAzimuth = readAzimuth();
+
+  
   // For Azimuth
-  while (fabs(currentAzimuth - desiredAzimuth) > 0.1 && noMovementCounterAzimuth <= 10) {
+  while (fabs(currentAzimuth - desiredAzimuth) > 1 && noMovementCounterAzimuth <= 10) {
     
     if (currentAzimuth < desiredAzimuth) {
       digitalWrite(pinRight, HIGH);
@@ -131,7 +136,7 @@ void moveMount(float desiredAzimuth, float desiredElevation) {
   }
   
   // For Elevation
-  while (fabs(currentElevation - desiredElevation) > 0.1 && noMovementCounterElevation <= 10) {
+  while (fabs(currentElevation - desiredElevation) > 1 && noMovementCounterElevation <= 10) {
     
     if (currentElevation < desiredElevation) {
       digitalWrite(pinUp, HIGH);

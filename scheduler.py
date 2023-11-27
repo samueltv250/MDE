@@ -1,5 +1,6 @@
 from skyfield.api import Topos, load, EarthSatellite, wgs84
 from datetime import datetime
+from datetime import timedelta
 import pytz
 from timezonefinder import TimezoneFinder
 import os
@@ -134,6 +135,34 @@ def get_azimuth_elevation(satellite, observer_location):
     return az.degrees, alt.degrees
 
 
+def get_sequential_tracking_spaced(existing_schedule, satellites_to_add, start_time, end_time, topos):
+    new_schedule = existing_schedule.copy()
+
+    for satellite in satellites_to_add:
+        windows = get_all_viewing_windows(satellite, start_time, end_time, topos)
+        sorted_windows = sorted(windows, key=lambda x: x[0])
+
+        for rise_time, set_time in sorted_windows:
+            if not new_schedule:
+                # If the schedule is empty, add the first window
+                new_schedule.append((satellite.name, rise_time, set_time, satellite))
+                break
+
+            # Calculate the duration of the last pass
+            last_pass_duration = (new_schedule[-1][2] - new_schedule[-1][1]).total_seconds()
+
+            # Calculate the required break time as 70% of the last pass duration
+            required_break = last_pass_duration * 0.7
+
+            # Calculate the earliest start time for the next pass
+            earliest_next_pass = new_schedule[-1][2] + timedelta(seconds=required_break)
+
+            # If the rise time is after the required break period, schedule the pass
+            if rise_time >= earliest_next_pass:
+                new_schedule.append((satellite.name, rise_time, set_time, satellite))
+                break  # Exit after scheduling the first valid window
+
+    return new_schedule
 
 def load_tle_from_string(tle_string):
     lines = tle_string.strip().split("\n")
@@ -156,12 +185,12 @@ if __name__ == "__main__":
 
     satellites = load.tle_file("satellites.tle")
     satellites_dict = {sat.name: sat for sat in satellites}
-    specific_satellite = satellites_dict.get("ISS (ZARYA)")  # Replace with the desired satellite name
+    specific_satellite = satellites_dict.get("Iridum 44")  # Replace with the desired satellite name
 
-    latitude, longitude  = 50.21573581795237, 8.26381093515386
+    latitude, longitude  = 37.229572, -80.413940
     local_timezone = pytz.timezone(determine_timezone(latitude, longitude))
-    start_time = local_timezone.localize(datetime(2023, 11, 17, 0, 0))
-    end_time = local_timezone.localize(datetime(2023, 11, 21, 0, 0))
+    start_time = local_timezone.localize(datetime(2023, 11, 27, 0, 0))
+    end_time = local_timezone.localize(datetime(2023, 11, 28, 0, 0))
 
     print(f"Timezone: {local_timezone}")
 
@@ -169,14 +198,15 @@ if __name__ == "__main__":
     observer_location = wgs84.latlon(latitude, longitude)
 
     # windows = get_all_viewing_windows(specific_satellite, start_time, end_time, observer_location)
-    
-    az, el = get_azimuth_elevation(specific_satellite, observer_location)
+    # while True:
+    #     az, el = get_azimuth_elevation(specific_satellite, observer_location)
 
-    print(f"Satellite: {specific_satellite.name}")
-    print(f"Azimuth: {az}")
-    print(f"Elevation: {el}")
+    #     print(f"Satellite: {specific_satellite.name}")
+    #     print(f"Azimuth: {az}")
+    #     print(f"Elevation: {el}")
+
     topos = Topos(latitude_degrees=latitude, longitude_degrees=longitude, elevation_m=0)
-    results = get_sequential_tracking_schedule(satellites, start_time, end_time, topos)
+    results = get_sequential_tracking_spaced([], satellites, start_time, end_time, topos)
     for res in results:
         print(f"Satellite: {res[0]}")
         print(f"Viewing Time: From {res[1]} to {res[2]}")
