@@ -91,6 +91,35 @@ def get_sequential_tracking_schedule(satellites, start_time, end_time, topos):
     empty_sats = []
     return add_to_sequential_schedule(empty_sats,satellites, start_time, end_time, topos)
 
+def get_sequential_tracking_spaced(existing_schedule, satellites_to_add, start_time, end_time, topos):
+    new_schedule = existing_schedule.copy()
+
+    for satellite in satellites_to_add:
+        windows = get_all_viewing_windows(satellite, start_time, end_time, topos)
+        sorted_windows = sorted(windows, key=lambda x: x[0])
+
+        for rise_time, set_time in sorted_windows:
+            if not new_schedule:
+                # If the schedule is empty, add the first window
+                new_schedule.append((satellite.name, rise_time, set_time, satellite))
+                break
+
+            # Calculate the duration of the last pass
+            last_pass_duration = (new_schedule[-1][2] - new_schedule[-1][1]).total_seconds()
+
+            # Calculate the required break time as 70% of the last pass duration
+            required_break = last_pass_duration * 0.7
+
+            # Calculate the earliest start time for the next pass
+            earliest_next_pass = new_schedule[-1][2] + timedelta(seconds=required_break)
+
+            # If the rise time is after the required break period, schedule the pass
+            if rise_time >= earliest_next_pass:
+                new_schedule.append((satellite.name, rise_time, set_time, satellite))
+                break  # Exit after scheduling the first valid window
+
+    return new_schedule
+
 def add_to_sequential_schedule(existing_schedule, satellites_to_add, start_time, end_time, topos):
     # If there's an existing schedule, pick the end time of the last satellite. Otherwise, use the start_time as the starting point.
     current_start_time = existing_schedule[-1][2] if len(existing_schedule) > 0 else start_time
