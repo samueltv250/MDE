@@ -283,6 +283,58 @@ class SatelliteTracker:
                 return response
         else:
             return "arduino not found"
+        
+    def record_fixed(self, satName, total_time, freq1):
+    
+
+
+      
+
+        self.recording = True
+
+
+        self.stop_recording_event = threading.Event()
+
+
+
+       
+
+        
+        used = get_size_of_directory(DATA_BASE_DIR)
+        bits_per_sample = 32
+        bytes_per_sample = bits_per_sample/8
+        
+        if self.dualMode:
+            theoretical_recording_size = ((self.sample_rate * bytes_per_sample * total_time) / (1024**3))*2
+        else:
+            theoretical_recording_size = ((self.sample_rate * bytes_per_sample * total_time) / (1024**3))
+
+
+        projected_used_space = theoretical_recording_size + used
+        print("Theoretical space used: "+str(theoretical_recording_size))
+        self.logger.info("Theoretical space used: "+str(theoretical_recording_size))
+        self.logger.info("Projected space used: "+str(projected_used_space))
+        if projected_used_space > 120:
+            print(f"recording would exceed max space in drive, must clean drive to continue recording")
+            self.recording = False
+            self.stop_recording_event.set()
+            return  # Exit the function if there isn't enough space
+
+        try:
+            if self.dualMode:
+                recorder = SDRRecorder(self.dual_device_args, sat_name = satName, mode='dual', frequency = freq1, stop_event = self.stop_recording_event)
+            else:
+                recorder = SDRRecorder(self.single_device_args, sat_name = satName, mode='single', frequency = freq1, stop_event = self.stop_recording_event)
+            recorder.start_recording(30, total_time)
+            recorder.stop_recording()
+        except:
+            print("Error recording")
+            self.logger.error("Error recording")
+            return "Error recording"
+
+        finally:
+            self.recording = False
+            return "finished recording"
 
     def record(self, satellite, rise_time, set_time):
 
@@ -325,6 +377,7 @@ class SatelliteTracker:
         projected_used_space = theoretical_recording_size + used
         print("Theoretical space used: "+str(theoretical_recording_size))
         self.logger.info("Theoretical space used: "+str(theoretical_recording_size))
+        self.logger.info("Projected space used: "+str(projected_used_space))
         if projected_used_space > 120:
             print(f"recording would exceed max space in drive, must clean drive to continue recording")
             self.recording = False
@@ -423,6 +476,16 @@ class SatelliteTracker:
                         elevation = float(parts[2])
                         msg = self.move_to_position(azimuth, elevation)
                         send_message(client_sock, "Moved")
+
+                    elif data.lower().startswith("record_fixed"):
+                        parts = data.split(" ")
+                        command = parts[0]
+                        satName = str(parts[1])
+                        total_time = int(parts[2])
+                        freq1 = int(parts[3])
+                        msg = self.record_fixed(satName, total_time, freq1)
+                        send_message(client_sock, msg)
+                        
                         
                     elif data.startswith("calibrate_date_time"):
                         send_message(client_sock, "Waiting on date time info")
