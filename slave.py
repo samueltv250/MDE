@@ -491,8 +491,9 @@ class SatelliteTracker:
                         satName = str(parts[1])
                         total_time = int(parts[2])
                         freq1 = int(parts[3])
-                        msg = self.record_fixed(satName, total_time, freq1)
-                        send_message(client_sock, msg)
+                        recording_thread = threading.Thread(target=self.record_fixed, args=(satName, total_time, freq1))  # Assign the thread to an instance variable
+                        recording_thread.start()
+                        send_message(client_sock, "Recording")
                         
                     elif data.startswith("calibrate_date_time"):
                         send_message(client_sock, "Waiting on date time info")
