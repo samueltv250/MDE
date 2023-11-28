@@ -28,16 +28,17 @@ class IQDataProcessor:
 
     def parse_filename(self):
         # Extract parameters from the filename using a regular expression
-        filename_pattern = r"(.+)_Frequency(\d+)_SampleRate(\d+)_Channel(\d+)_(.+)\.dat"
+        filename_pattern = r"(.+)_Frequency(\d+(\.\d+)?)_SampleRate(\d+(\.\d+)?)_Channel(\d+(\.\d+)?)_(.+)\.dat"
         match = re.search(filename_pattern, os.path.basename(self.filepath))
         if match:
             self.sat_name = match.group(1)
-            self.frequency = int(match.group(2))
-            self.sample_rate = int(match.group(3))
-            self.channel = int(match.group(4))
-            self.timestamp = match.group(5)
+            self.frequency = float(match.group(2))  # Convert to float
+            self.sample_rate = float(match.group(4))  # Convert to float
+            self.channel = float(match.group(6))  # Convert to float, or int if you expect channel to be an integer
+            self.timestamp = match.group(8)
         else:
             raise ValueError("Filename does not match the expected format.")
+
 
     def read_iq_samples(self):
         # Read the IQ samples from the file
