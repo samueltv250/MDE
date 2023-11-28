@@ -9,6 +9,24 @@ def read_iq_samples(file_path):
     iq_samples = np.frombuffer(raw_data, dtype=np.complex64)
     return iq_samples
 
+
+def read_iq_samples_chunked(file_path, chunk_size=1024*1024):
+    # Read the IQ samples from the file in chunks
+    iq_samples = []
+    with open(file_path, 'rb') as file:
+        while True:
+            raw_data = file.read(chunk_size)
+            if not raw_data:
+                break
+            # Convert the bytes to complex64
+            iq_samples_chunk = np.frombuffer(raw_data, dtype=np.complex64)
+            # Process the chunk (for example, just append to a list here)
+            iq_samples.append(iq_samples_chunk)
+    # Combine chunks into one array if needed
+    iq_samples = np.concatenate(iq_samples)
+    return iq_samples
+
+
 def plot_iq_samples(file_path, sample_rate=1e7, downsample_factor=100):
     # Read the IQ samples
     iq_samples = read_iq_samples(file_path)

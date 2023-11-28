@@ -159,10 +159,10 @@ void moveMount(float desiredAzimuth, float desiredElevation) {
   }
   
   if (noMovementCounterAzimuth <= 10 || noMovementCounterElevation <= 10) {
-    Serial.println("Moved");
+    Serial.println("moved");
   }
   else{
-    Serial.println("Error");
+    Serial.println("error");
   }
 }
 

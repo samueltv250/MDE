@@ -315,7 +315,13 @@ class SatelliteTracker:
         used = get_size_of_directory(DATA_BASE_DIR)
         bits_per_sample = 32
         bytes_per_sample = bits_per_sample/8
-        theoretical_recording_size = (self.sample_rate * bytes_per_sample * total_time) / (1024**3)
+        
+        if self.dualMode:
+            theoretical_recording_size = ((self.sample_rate * bytes_per_sample * total_time) / (1024**3))*2
+        else:
+            theoretical_recording_size = ((self.sample_rate * bytes_per_sample * total_time) / (1024**3))
+
+
         projected_used_space = theoretical_recording_size + used
         print("Theoretical space used: "+str(theoretical_recording_size))
         self.logger.info("Theoretical space used: "+str(theoretical_recording_size))
@@ -363,7 +369,7 @@ class SatelliteTracker:
                 
                 if azimuth >= 0 and  azimuth<= 450 and elevation >= 0 and elevation<=180:
                     self.move_to_position(azimuth, elevation)
-                    self.logger.warning("Moved to az= " + str(azimuth)+", el= "+str(elevation))
+                    self.logger.info("Moved to az= " + str(azimuth)+", el= "+str(elevation))
                     # Update the previous azimuth and elevation
                     previous_azimuth, previous_elevation = azimuth, elevation
                 else:
