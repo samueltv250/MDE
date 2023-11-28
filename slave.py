@@ -131,6 +131,25 @@ class SatelliteTracker:
         self.default_frequency = 1.626e9
   
 
+        
+
+
+
+        log_path = os.path.join(DATA_BASE_DIR, "slave.log")
+
+        logging.basicConfig(level=logging.INFO, filename=log_path, filemode='a', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        self.logger = logging.getLogger(__name__)
+
+
+        try:
+            # Placeholder for gps module
+            self.gps = gps.init_gps()   # Initialize the GPS module
+            self.latitude, self.longitude = gps.get_coordinates(self.gps)
+        except:
+            self.latitude, self.longitude = 37.229572, -80.413940
+            self.logger.warning("GPS not found, defaulting to lat= "+str(self.latitude)+", long= "+str(self.longitude))
+
+
         self.topos = Topos(latitude_degrees=self.latitude, longitude_degrees=self.longitude, elevation_m=0)
         self.local_timezone = pytz.timezone(determine_timezone(self.latitude, self.longitude))
         
@@ -158,23 +177,6 @@ class SatelliteTracker:
    
         self.sample_rate = 10e6
         self.dualMode = False
-
-
-
-        log_path = os.path.join(DATA_BASE_DIR, "slave.log")
-
-        logging.basicConfig(level=logging.INFO, filename=log_path, filemode='a', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        self.logger = logging.getLogger(__name__)
-
-
-        try:
-            # Placeholder for gps module
-            self.gps = gps.init_gps()   # Initialize the GPS module
-            self.latitude, self.longitude = gps.get_coordinates(self.gps)
-        except:
-            self.latitude, self.longitude = 37.229572, -80.413940
-            self.logger.warning("GPS not found, defaulting to lat= "+str(self.latitude)+", long= "+str(self.longitude))
-
 
     def start_tracking(self):
         """Starts the tracking process in a new thread."""
