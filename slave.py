@@ -175,7 +175,7 @@ class SatelliteTracker:
             elif "Dual Tuner" in dev["label"]:
                 self.dual_device_args = dev
    
-        self.sample_rate = 10e6
+        self.sample_rate = 2e6
         self.dualMode = False
 
     def start_tracking(self):
@@ -476,13 +476,7 @@ class SatelliteTracker:
                         send_message(client_sock, "Rebooting...")
                         server_sock.close()
                         return
-                    
-                    elif data.startswith("purge_data"):
-                        subprocess.run(["sudo", "rm", "*.dat"])
-                        send_message(client_sock, "Rebooting...")
-                        server_sock.close()
-                        return
-                    
+                
                     elif data.lower().startswith("move"):
                         parts = data.split(" ")
                         command = parts[0]
@@ -520,7 +514,7 @@ class SatelliteTracker:
                         send_message(client_sock, msg)
 
                     elif data.startswith("set_single_tuner"):
-                        self.sample_rate = 10e6
+                        self.sample_rate = 2e6
                         self.dualMode = False
                         send_message(client_sock, "set_single_tuner")
                         

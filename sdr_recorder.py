@@ -159,7 +159,8 @@ class SDRRecorder:
         # Wait for all consumer threads to finish
         for thread in self.consumer_threads:
             thread.join()
- 
+        self.logger.info("Finished saving to drive")
+        print("Finished saving to drive")
         import gc
         gc.collect()
 
