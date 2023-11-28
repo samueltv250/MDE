@@ -40,7 +40,7 @@ class SDRRecorder:
         self.stop_event = stop_event
 
 
-        log_path = os.path.join(self.directory, "sdr_recorder.log")
+        log_path = os.path.join(self.directory, "slave.log")
 
         logging.basicConfig(level=logging.INFO, filename=log_path, filemode='a', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         self.logger = logging.getLogger(__name__)

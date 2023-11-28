@@ -113,7 +113,6 @@ def list_files(directory):
 
 class SatelliteTracker:
     def __init__(self, serial_port=None, baudrate=9600):
-        # self.gps = gps.init_gps()   # Initialize the GPS module
         self.arduino_found = True
         time.sleep(5) #give time to initialize
         if serial_port is None:
@@ -130,9 +129,7 @@ class SatelliteTracker:
         # Flag to stop the tracking process
         self.stop_signal = True
         self.default_frequency = 1.626e9
-        # Placeholder for gps module
-        # self.latitude, self.longitude = gps.get_coordinates(self.gps)
-        self.latitude, self.longitude = 37.229572, -80.413940
+  
 
         self.topos = Topos(latitude_degrees=self.latitude, longitude_degrees=self.longitude, elevation_m=0)
         self.local_timezone = pytz.timezone(determine_timezone(self.latitude, self.longitude))
@@ -168,6 +165,15 @@ class SatelliteTracker:
 
         logging.basicConfig(level=logging.INFO, filename=log_path, filemode='a', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         self.logger = logging.getLogger(__name__)
+
+
+        try:
+            # Placeholder for gps module
+            self.gps = gps.init_gps()   # Initialize the GPS module
+            self.latitude, self.longitude = gps.get_coordinates(self.gps)
+        except:
+            self.latitude, self.longitude = 37.229572, -80.413940
+            self.logger.warning("GPS not found, defaulting to lat= "+str(self.latitude)+", long= "+str(self.longitude))
 
 
     def start_tracking(self):
@@ -485,7 +491,6 @@ class SatelliteTracker:
                         freq1 = int(parts[3])
                         msg = self.record_fixed(satName, total_time, freq1)
                         send_message(client_sock, msg)
-                        
                         
                     elif data.startswith("calibrate_date_time"):
                         send_message(client_sock, "Waiting on date time info")

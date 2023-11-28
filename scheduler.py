@@ -16,7 +16,7 @@ if os.path.isdir(USB_DIR):
     DATA_BASE_DIR = USB_DIR
 
 
-log_path = os.path.join(DATA_BASE_DIR, "scheduler.log")
+log_path = os.path.join(DATA_BASE_DIR, "slave.log")
 
 logging.basicConfig(level=logging.INFO, filename=log_path, filemode='a', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
