@@ -25,9 +25,13 @@ class SDRRecorder:
     DEFAULT_SAMPLE_RATE = 2e6
     BUFFER_SIZE = 1000*100
 
-    def __init__(self, device_args, sat_name="NoName", frequency=1.626e9, mode='single', directory=DATA_BASE_DIR, stop_event = threading.Event()):
+    def __init__(self, device_args, sample_rate = None, sat_name="NoName", frequency=1.626e9, mode='single', directory=DATA_BASE_DIR, stop_event = threading.Event()):
         self.device = sdr.Device(device_args)
-        self.sample_rate = self.DEFAULT_SAMPLE_RATE
+        if sample_rate == None:
+            self.sample_rate = int(self.DEFAULT_SAMPLE_RATE)
+        else:
+            self.sample_rate = int(sample_rate)
+
         self.mode = mode
         self.streams = [None] * (2 if mode == 'dual' else 1)
         self.lock = threading.Lock()

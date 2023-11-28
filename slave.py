@@ -330,9 +330,9 @@ class SatelliteTracker:
 
         try:
             if self.dualMode:
-                recorder = SDRRecorder(self.dual_device_args, sat_name = satName, mode='dual', frequency = freq1, stop_event = self.stop_recording_event)
+                recorder = SDRRecorder(self.dual_device_args, self.sample_rate, sat_name = satName, mode='dual', frequency = freq1, stop_event = self.stop_recording_event)
             else:
-                recorder = SDRRecorder(self.single_device_args, sat_name = satName, mode='single', frequency = freq1, stop_event = self.stop_recording_event)
+                recorder = SDRRecorder(self.single_device_args, self.sample_rate, sat_name = satName, mode='single', frequency = freq1, stop_event = self.stop_recording_event)
             recorder.start_recording(30, total_time)
             recorder.stop_recording()
         except:
@@ -395,9 +395,9 @@ class SatelliteTracker:
 
         try:
             if self.dualMode:
-                recorder = SDRRecorder(self.dual_device_args, sat_name = satellite.name, mode='dual', frequency = freq1, stop_event = self.stop_recording_event)
+                recorder = SDRRecorder(self.dual_device_args, self.sample_rate, sat_name = satellite.name, mode='dual', frequency = freq1, stop_event = self.stop_recording_event)
             else:
-                recorder = SDRRecorder(self.single_device_args, sat_name = satellite.name, mode='single', frequency = freq1, stop_event = self.stop_recording_event)
+                recorder = SDRRecorder(self.single_device_args, self.sample_rate, sat_name = satellite.name, mode='single', frequency = freq1, stop_event = self.stop_recording_event)
             recorder.start_recording(30, total_time)
             recorder.stop_recording()
         except:
