@@ -475,6 +475,12 @@ class SatelliteTracker:
                         server_sock.close()
                         return
                     
+                    elif data.startswith("purge_data"):
+                        subprocess.run(["sudo", "rm", "*.dat"])
+                        send_message(client_sock, "Rebooting...")
+                        server_sock.close()
+                        return
+                    
                     elif data.lower().startswith("move"):
                         parts = data.split(" ")
                         command = parts[0]
@@ -482,7 +488,7 @@ class SatelliteTracker:
                         elevation = float(parts[2])
                         msg = self.move_to_position(azimuth, elevation)
                         send_message(client_sock, "Moved")
-
+                    
                     elif data.lower().startswith("record_fixed"):
                         parts = data.split(" ")
                         command = parts[0]

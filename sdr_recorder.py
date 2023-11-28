@@ -151,7 +151,7 @@ class SDRRecorder:
         self.device.close()
         self.device = None
         self.stop_event.set()
-        
+        self.logger.info("Finished recording - waiting on consumer to finish saving to drive")
         # Wait for all consumer threads to finish
         for thread in self.consumer_threads:
             thread.join()
