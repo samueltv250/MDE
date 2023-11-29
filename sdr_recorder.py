@@ -27,9 +27,7 @@ class SDRRecorder:
 
     def __init__(self, device_args, band_width = None, sat_name="NoName", frequency=1.626e9, mode='single', directory=DATA_BASE_DIR, stop_event = threading.Event()):
         self.device = sdr.Device(device_args)
-
         self.band_width = int(band_width)
-
         self.sample_rate = int(self.DEFAULT_SAMPLE_RATE)
         self.mode = mode
         self.streams = [None] * (2 if mode == 'dual' else 1)
@@ -53,7 +51,7 @@ class SDRRecorder:
         with self.lock:
             self.device.setSampleRate(sdr.SOAPY_SDR_RX, channel, self.sample_rate)
             self.device.setFrequency(sdr.SOAPY_SDR_RX, channel, frequency)
-            self.device.setBandwidth(sdr.SOAPY_SDR_RX, channel, )
+            self.device.setBandwidth(sdr.SOAPY_SDR_RX, channel, self.band_width)
             self.device.setGain(sdr.SOAPY_SDR_RX, channel, gain)
 
     def activate_stream(self, channel):
