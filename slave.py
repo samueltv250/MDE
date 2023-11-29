@@ -175,7 +175,7 @@ class SatelliteTracker:
             elif "Dual Tuner" in dev["label"]:
                 self.dual_device_args = dev
    
-        self.sample_rate = 2e6
+        self.band_width = 10e6
         self.dualMode = False
 
     def start_tracking(self):
@@ -313,9 +313,9 @@ class SatelliteTracker:
         bytes_per_sample = bits_per_sample/8
         
         if self.dualMode:
-            theoretical_recording_size = ((self.sample_rate * bytes_per_sample * total_time) / (1024**3))*2
+            theoretical_recording_size = ((self.band_width * bytes_per_sample * total_time) / (1024**3))*2
         else:
-            theoretical_recording_size = ((self.sample_rate * bytes_per_sample * total_time) / (1024**3))
+            theoretical_recording_size = ((self.band_width * bytes_per_sample * total_time) / (1024**3))
 
 
         projected_used_space = theoretical_recording_size + used
@@ -330,9 +330,9 @@ class SatelliteTracker:
 
         try:
             if self.dualMode:
-                recorder = SDRRecorder(self.dual_device_args, self.sample_rate, sat_name = satName, mode='dual', frequency = freq1, stop_event = self.stop_recording_event)
+                recorder = SDRRecorder(self.dual_device_args, self.band_width, sat_name = satName, mode='dual', frequency = freq1, stop_event = self.stop_recording_event)
             else:
-                recorder = SDRRecorder(self.single_device_args, self.sample_rate, sat_name = satName, mode='single', frequency = freq1, stop_event = self.stop_recording_event)
+                recorder = SDRRecorder(self.single_device_args, self.band_width, sat_name = satName, mode='single', frequency = freq1, stop_event = self.stop_recording_event)
             recorder.start_recording(30, total_time)
             recorder.stop_recording()
         except:
@@ -377,9 +377,9 @@ class SatelliteTracker:
         bytes_per_sample = bits_per_sample/8
         
         if self.dualMode:
-            theoretical_recording_size = ((self.sample_rate * bytes_per_sample * total_time) / (1024**3))*2
+            theoretical_recording_size = ((self.band_width * bytes_per_sample * total_time) / (1024**3))*2
         else:
-            theoretical_recording_size = ((self.sample_rate * bytes_per_sample * total_time) / (1024**3))
+            theoretical_recording_size = ((self.band_width * bytes_per_sample * total_time) / (1024**3))
 
 
         projected_used_space = theoretical_recording_size + used
@@ -395,9 +395,9 @@ class SatelliteTracker:
 
         try:
             if self.dualMode:
-                recorder = SDRRecorder(self.dual_device_args, self.sample_rate, sat_name = satellite.name, mode='dual', frequency = freq1, stop_event = self.stop_recording_event)
+                recorder = SDRRecorder(self.dual_device_args, self.band_width, sat_name = satellite.name, mode='dual', frequency = freq1, stop_event = self.stop_recording_event)
             else:
-                recorder = SDRRecorder(self.single_device_args, self.sample_rate, sat_name = satellite.name, mode='single', frequency = freq1, stop_event = self.stop_recording_event)
+                recorder = SDRRecorder(self.single_device_args, self.band_width, sat_name = satellite.name, mode='single', frequency = freq1, stop_event = self.stop_recording_event)
             recorder.start_recording(30, total_time)
             recorder.stop_recording()
         except:
@@ -515,12 +515,12 @@ class SatelliteTracker:
                         send_message(client_sock, msg)
 
                     elif data.startswith("set_single_tuner"):
-                        self.sample_rate = 2e6
+                        self.band_width = 10e6
                         self.dualMode = False
                         send_message(client_sock, "set_single_tuner")
                         
                     elif data.startswith("set_dual_tuner"):
-                        self.sample_rate = 2e6
+                        self.band_width = 2e6
                         self.dualMode = True
                         send_message(client_sock, "set_dual_tuner")
 
