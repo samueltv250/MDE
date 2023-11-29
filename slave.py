@@ -507,7 +507,6 @@ class SatelliteTracker:
                         # Set the system date and time
                         subprocess.call(['sudo', 'date', '-s', formatted_datetime])
 
-
                         send_message(client_sock, "Finished setting datetime")
                         
                     elif data.startswith("calibrate"):
@@ -575,7 +574,7 @@ class SatelliteTracker:
                         modified_schedule = [row[:-1] for row in list(self.schedule.queue)]
                         modified_processed_satellites = [row[:-1] for row in self.already_processed_satellites]
 
-                        meta_data = {"used_space" : get_size_of_directory(DATA_BASE_DIR), "is_recording" :self.recording,"directory" :DATA_BASE_DIR, "current_time": pytz.utc.localize(datetime.utcnow()), "data": directory_files, "schedule": modified_schedule, "processed_schedule": modified_processed_satellites, "tracking": not self.stop_signal}
+                        meta_data = {"used_space" : get_size_of_directory(DATA_BASE_DIR), "is_recording" :self.recording,"directory" :DATA_BASE_DIR, "current_time": datetime.utcnow(), "data": directory_files, "schedule": modified_schedule, "processed_schedule": modified_processed_satellites, "tracking": not self.stop_signal}
 
                         serialized_data = pickle.dumps(meta_data)
                         send_message(client_sock, serialized_data, is_binary=True)
