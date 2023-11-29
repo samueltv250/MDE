@@ -157,7 +157,7 @@ class WiFiManager:
         tracking_status = response["tracking"]
         time_zone = datetime.datetime.now(datetime.timezone.utc).astimezone().tzname()
 
-        print(f"Current Time on Raspberry Pi: {current_time.strftime('%Y-%m-%d %H:%M:%S')} {current_time.tzinfo.zone}\n")
+        print(f"Current Time on Raspberry Pi: {current_time.strftime('%Y-%m-%d %H:%M:%S')} UTC\n")
         print(f"Tracking Status: {'On' if tracking_status else 'Off'}\n")
         print(f"Recording Status: {'On' if is_recording else 'Off'}\n")
         print(f"Using directory: {used_dir}\n")
