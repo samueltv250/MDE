@@ -1,0 +1,174 @@
+<mxfile host="app.diagrams.net" modified="2023-11-08T08:00:17.449Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0" etag="wKufqZfBfLVT5HW_KQ2W" version="22.0.8" type="google">
+  <diagram name="Page-1" id="FaRHiFm95pcg4pOaofo5">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="xE_QpfDZBASxFUGpKQOp-7" value="Lat long as serial data&lt;br&gt;Rx (Receiver)" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;" edge="1" parent="1" source="xE_QpfDZBASxFUGpKQOp-6">
+          <mxGeometry x="-0.15" width="80" relative="1" as="geometry">
+            <mxPoint x="169" y="552" as="sourcePoint" />
+            <mxPoint x="269" y="540" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="239" y="540" />
+              <mxPoint x="249" y="540" />
+              <mxPoint x="229" y="551.5" />
+            </Array>
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SzjBtV-exzoAhBNfAClI-9" value="Serial Control&lt;br&gt;Commands&lt;br&gt;(USB cable)" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;" edge="1" parent="1" source="MukkEl26WY4IYq8-pvVn-9">
+          <mxGeometry x="0.0476" width="80" relative="1" as="geometry">
+            <mxPoint x="625" y="507" as="sourcePoint" />
+            <mxPoint x="720" y="497" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="700" y="497" />
+              <mxPoint x="680" y="507" />
+            </Array>
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SzjBtV-exzoAhBNfAClI-10" value="&lt;div&gt;Serial Status&lt;/div&gt;&lt;div&gt;Updates&lt;/div&gt;&lt;div&gt;(USB cable)&lt;/div&gt;" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;exitX=0;exitY=0.917;exitDx=0;exitDy=0;exitPerimeter=0;" edge="1" parent="1" source="MukkEl26WY4IYq8-pvVn-16">
+          <mxGeometry x="-0.04" width="80" relative="1" as="geometry">
+            <mxPoint x="716" y="530" as="sourcePoint" />
+            <mxPoint x="616" y="540" as="targetPoint" />
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="636" y="540" />
+              <mxPoint x="676" y="540" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MukkEl26WY4IYq8-pvVn-9" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="270" y="480" width="345" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="MukkEl26WY4IYq8-pvVn-12" value="Power System" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="383.75" y="310" width="118.75" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="MukkEl26WY4IYq8-pvVn-16" value="Adafruit Feather&lt;br&gt;(Mount controller)" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="720" y="485" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="MukkEl26WY4IYq8-pvVn-22" value="Wireless Device" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="382.5" y="790" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="SzjBtV-exzoAhBNfAClI-2" value="Receiver" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="720" y="605" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="SzjBtV-exzoAhBNfAClI-7" value="Configuration settings, &lt;br&gt;gain adjustments, &lt;br&gt;frequency tuning&lt;br&gt;(USB cable)&lt;br&gt;&lt;div&gt;&lt;/div&gt;" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;" edge="1" parent="1">
+          <mxGeometry x="0.0392" width="80" relative="1" as="geometry">
+            <mxPoint x="617" y="610" as="sourcePoint" />
+            <mxPoint x="719" y="610" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="719" y="610" />
+              <mxPoint x="689" y="620" />
+            </Array>
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SzjBtV-exzoAhBNfAClI-8" value="8 bit IQ Samples&lt;br&gt;and&amp;nbsp;Metadata&lt;br style=&quot;border-color: var(--border-color);&quot;&gt;(USB cable)" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;exitX=0;exitY=0.75;exitDx=0;exitDy=0;" edge="1" parent="1" source="SzjBtV-exzoAhBNfAClI-2" target="MukkEl26WY4IYq8-pvVn-9">
+          <mxGeometry x="0.0435" width="80" relative="1" as="geometry">
+            <mxPoint x="630" y="760" as="sourcePoint" />
+            <mxPoint x="650" y="660" as="targetPoint" />
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="680" y="660" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MukkEl26WY4IYq8-pvVn-1" value="I/O" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="287.5" y="567" width="70" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="MukkEl26WY4IYq8-pvVn-2" value="CPU/GPU" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="407.5" y="567" width="70" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="MukkEl26WY4IYq8-pvVn-3" value="RAM" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="407.5" y="507" width="70" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="MukkEl26WY4IYq8-pvVn-4" value="USB hub" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="527.5" y="567" width="70" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="MukkEl26WY4IYq8-pvVn-5" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="MukkEl26WY4IYq8-pvVn-1" target="MukkEl26WY4IYq8-pvVn-2">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="417.5" y="757" as="sourcePoint" />
+            <mxPoint x="467.5" y="707" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MukkEl26WY4IYq8-pvVn-7" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="477.5" y="581.5" as="sourcePoint" />
+            <mxPoint x="527.5" y="581.5" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MukkEl26WY4IYq8-pvVn-8" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="MukkEl26WY4IYq8-pvVn-2" target="MukkEl26WY4IYq8-pvVn-3">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="377.5" y="602" as="sourcePoint" />
+            <mxPoint x="427.5" y="602" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MukkEl26WY4IYq8-pvVn-19" value="SSD Storage" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="405" y="627" width="72.5" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="MukkEl26WY4IYq8-pvVn-20" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="MukkEl26WY4IYq8-pvVn-2" target="MukkEl26WY4IYq8-pvVn-19">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="540" y="677" as="sourcePoint" />
+            <mxPoint x="635" y="627" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SzjBtV-exzoAhBNfAClI-11" value="5.1V 3.0 A&lt;br&gt;(USB C)" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=elbowEdgeStyle;elbow=horizontal;curved=0;rounded=0;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.461;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="MukkEl26WY4IYq8-pvVn-12">
+          <mxGeometry x="0.1027" width="80" relative="1" as="geometry">
+            <mxPoint x="393.75" y="420" as="sourcePoint" />
+            <mxPoint x="412.7950000000001" y="480" as="targetPoint" />
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SzjBtV-exzoAhBNfAClI-12" value="Voltage &lt;br&gt;Measurement" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=elbowEdgeStyle;elbow=horizontal;curved=0;rounded=0;exitX=0.25;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1">
+          <mxGeometry x="0.0991" width="80" relative="1" as="geometry">
+            <mxPoint x="474.75" y="370" as="sourcePoint" />
+            <mxPoint x="473.75" y="480" as="targetPoint" />
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="473.75" y="480" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="xE_QpfDZBASxFUGpKQOp-2" value="Computer" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="350" y="477" width="190" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="xE_QpfDZBASxFUGpKQOp-4" value="&lt;div&gt;Diagnostics&lt;/div&gt;&lt;div&gt;&amp;amp; Data&lt;/div&gt;&lt;div&gt;(Wi-Fi)&lt;br&gt;&lt;/div&gt;" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;exitX=0.414;exitY=1.011;exitDx=0;exitDy=0;exitPerimeter=0;" edge="1" parent="1">
+          <mxGeometry x="0.1543" relative="1" as="geometry">
+            <mxPoint x="408.8299999999999" y="672.0899999999999" as="sourcePoint" />
+            <mxPoint x="408.5" y="790" as="targetPoint" />
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="409" y="740" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gFJLgJDnNjelWU9MCyI2-11" value="&lt;div&gt;TLE, Contol&amp;nbsp;&lt;/div&gt;&lt;div&gt;Cmds&lt;/div&gt;&lt;div&gt;(Wi-Fi)&lt;/div&gt;" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;entryX=0.58;entryY=0.997;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1">
+          <mxGeometry x="-0.1713" relative="1" as="geometry">
+            <mxPoint x="474" y="790" as="sourcePoint" />
+            <mxPoint x="474.0999999999999" y="669.4300000000001" as="targetPoint" />
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="484" y="760" />
+              <mxPoint x="484" y="690" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="xE_QpfDZBASxFUGpKQOp-6" value="GPS Module" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="29" y="537" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="xE_QpfDZBASxFUGpKQOp-8" value="Request as serial data&lt;br&gt;Tx (Transmitter)" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;exitX=0.003;exitY=0.603;exitDx=0;exitDy=0;exitPerimeter=0;" edge="1" parent="1">
+          <mxGeometry x="0.0322" y="-6" width="80" relative="1" as="geometry">
+            <mxPoint x="272.03499999999997" y="594.5699999999999" as="sourcePoint" />
+            <mxPoint x="151" y="595.5" as="targetPoint" />
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="261" y="596" />
+              <mxPoint x="191" y="605.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

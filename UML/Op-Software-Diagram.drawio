@@ -1,0 +1,124 @@
+<mxfile host="app.diagrams.net" modified="2023-11-08T07:59:21.191Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0" etag="dbMEtJlG6udmbrQN1Djp" version="22.0.8" type="google">
+  <diagram name="Page-1" id="FaRHiFm95pcg4pOaofo5">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-2" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="240" width="280" height="480" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-3" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="520" y="240" width="280" height="480" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-5" value="Client-Side Software" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="240" width="280" height="480" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-6" value="Slave-Side Software" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="520" y="240" width="280" height="480" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-8" value="GUI" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="278" width="240" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="ta2iiBgFGIR2o4DFkwdp-1" value="Select Recordings on client-side for&amp;nbsp;plotting or deletion&lt;span id=&quot;docs-internal-guid-cb53703a-7fff-16f9-f63a-c8b0844afea7&quot;&gt;&lt;/span&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="DjlKEHMpY8DOPqZZeezH-8">
+          <mxGeometry x="30" y="142" width="180" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-11" value="Communication" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="640" width="240" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-12" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="550" y="400" width="240" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-14" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="550" y="280" width="240" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-15" value="Data Management" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="550" y="280" width="240" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-16" value="Data Processing" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="550" y="400" width="240" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-21" value="TLE Input via txt file" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="308" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-22" value="Display Recordings on both client and slave side" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="338" width="180" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-23" value="Select Recordings on slave-side for&amp;nbsp;offloading or deletion&lt;span id=&quot;docs-internal-guid-cb53703a-7fff-16f9-f63a-c8b0844afea7&quot;&gt;&lt;/span&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="378" width="180" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-25" value="Accepts Fixed Azimuth &amp;amp;&amp;nbsp;Elevation for testing" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="462" width="180" height="27" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-27" value="Wi-Fi&amp;nbsp;connectivity" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="672" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-29" value="Receive IQ Samples" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="580" y="430" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-30" value="Combine Sample Data" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="580" y="457" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-31" value="Store Binary Files" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="580" y="485" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-32" value="Manage Data Storage" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="580" y="310" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-33" value="Offloading" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="580" y="337" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-34" value="TLE Schedule Creation" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="580" y="365" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-36" value="" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="320" y="360" as="sourcePoint" />
+            <mxPoint x="520" y="360" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-37" value="TLE, Contol Commands&lt;br&gt;Wi-Fi" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="330" y="327" width="180" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-38" value="" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="520" y="580" as="sourcePoint" />
+            <mxPoint x="320" y="580" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-39" value="Data&lt;br&gt;Wi-Fi" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="335" y="550" width="180" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ta2iiBgFGIR2o4DFkwdp-2" value="Data Processing" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="520" width="240" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ta2iiBgFGIR2o4DFkwdp-6" value="Store Binary Files" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="ta2iiBgFGIR2o4DFkwdp-2">
+          <mxGeometry x="30" y="57" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ta2iiBgFGIR2o4DFkwdp-3" value="Receive processed Data" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="551" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ta2iiBgFGIR2o4DFkwdp-5" value="Execute FFT on Data for Plotting" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="604" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ta2iiBgFGIR2o4DFkwdp-7" value="Command Processing" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="550" y="520" width="240" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ta2iiBgFGIR2o4DFkwdp-8" value="Process TLE" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="580" y="550" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ta2iiBgFGIR2o4DFkwdp-9" value="Calculate Azimuth and Elevation" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="580" y="577" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ta2iiBgFGIR2o4DFkwdp-10" value="Send Commands to Mount" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="580" y="605" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ta2iiBgFGIR2o4DFkwdp-11" value="Communication" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="550" y="640" width="240" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ta2iiBgFGIR2o4DFkwdp-12" value="Wi-Fi&amp;nbsp;connectivity" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="580" y="670" width="180" height="20" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

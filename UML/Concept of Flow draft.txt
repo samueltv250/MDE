@@ -1,0 +1,35 @@
+@startuml
+:Users transport system up to 100 yards to deployment site;
+:Users assemble the system within 5 minutes;
+:Users initialize system via a temporary wireless link to a laptop or tablet;
+:Users initiate download of observing tasks to system over wireless link;
+
+
+repeat
+repeat while (System is initialized and tasks are fully downloaded) is (no)
+if (System is initialized and tasks are fully downloaded) then (yes)
+:wireless link is discontinued and system is left unattended;
+endif
+
+if (User reestablishes connection with system) then (yes)
+:user chooses from multiple options;
+if (check status of instrument)
+elseif (offload data)
+elseif (add/delete tasks)
+endif
+else (no)
+:System completes tasks autonomously;
+endif
+
+:The system is shut down, disassembled, and packed up within 10 minutes;
+:The user is able to review any data offloaded from the system using a software application which shows log(s), averaged spectrum vs. time, signal strength vs. time,
+and relevant metadata.;
+
+end
+
+
+
+
+
+
+@enduml

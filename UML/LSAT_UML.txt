@@ -1,0 +1,14 @@
+@startuml
+
+Sat_Signal -> [Antenna] : Raw Signal
+[Antenna] -> [ADC] 
+[ADC] -> [Onboard Computer] : Processed Signal
+[Onboard Computer] --> SSD_Storage
+[Onboard Computer] --> Wireless_Device
+[Power System] -- [ADC]
+[Power System] -- [Onboard Computer]
+[Power System] -- [Gimbal]
+[Onboard Computer] - [Gimbal]
+[Gimbal] ... [Antenna] : Directional Control
+
+@enduml

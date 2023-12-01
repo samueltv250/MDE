@@ -1,0 +1,67 @@
+<mxfile host="app.diagrams.net" modified="2023-04-18T18:37:16.651Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.0.0" etag="CE21l27xbicUmZHHQ-kn" version="21.1.8" type="google">
+  <diagram name="Page-1" id="FaRHiFm95pcg4pOaofo5">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-2" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="240" width="460" height="370" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-5" value="Custom Python Software" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="240" width="460" height="370" as="geometry" />
+        </mxCell>
+        <mxCell id="ja2FhuGGKZ1fF4hbpZEv-13" value="Communication" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="DjlKEHMpY8DOPqZZeezH-5">
+          <mxGeometry x="260" y="210" width="180" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="ja2FhuGGKZ1fF4hbpZEv-14" value="Bluetooth for seamless interaction between components" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="ja2FhuGGKZ1fF4hbpZEv-13">
+          <mxGeometry x="15" y="42" width="150" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-7" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="300" width="180" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-8" value="Two Main Components" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="300" width="180" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="DjlKEHMpY8DOPqZZeezH-21" value="Client-Side Software" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="75" y="339" width="150" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ja2FhuGGKZ1fF4hbpZEv-6" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="300" y="300" width="180" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="ja2FhuGGKZ1fF4hbpZEv-7" value="Key Features" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="300" y="300" width="180" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="ja2FhuGGKZ1fF4hbpZEv-8" value="Intuitive GUI" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="315" y="330" width="150" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ja2FhuGGKZ1fF4hbpZEv-9" value="Remote monitoring" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="315" y="356" width="150" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ja2FhuGGKZ1fF4hbpZEv-10" value="Custom data processing" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="315" y="385" width="150" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ja2FhuGGKZ1fF4hbpZEv-19" value="Designed to fulfill unique project requirements&lt;span id=&quot;docs-internal-guid-89871652-7fff-52c2-c7f8-a58412bbeab4&quot;&gt;&lt;/span&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="120" y="225" width="310" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ja2FhuGGKZ1fF4hbpZEv-20" value="Slave-Side Software" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="75" y="369" width="150" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="ja2FhuGGKZ1fF4hbpZEv-23" value="Sent from Client-Side to Slave Computer-Side&lt;span id=&quot;docs-internal-guid-89871652-7fff-52c2-c7f8-a58412bbeab4&quot;&gt;&lt;/span&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="70.5" y="479" width="155" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ja2FhuGGKZ1fF4hbpZEv-24" value="Recording, Status Info" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="73" y="529" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ja2FhuGGKZ1fF4hbpZEv-25" value="Sent from Slave to Client-Side" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="83.25" y="550" width="129.5" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ja2FhuGGKZ1fF4hbpZEv-26" value="TLE and Control Cmds" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="73" y="459" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ja2FhuGGKZ1fF4hbpZEv-28" value="Communication Data" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="430" width="180" height="170" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
